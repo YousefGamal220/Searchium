@@ -1,26 +1,30 @@
 package WebCrawler;
 
-import DB.DB;
-
-import java.io.IOException;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-
+import DB.MongoDB;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
+import java.io.IOException;
+import java.sql.SQLException;
+import java.util.*;
 public class WebCrawler implements Runnable {
-    public DB db;
+
+    ///Those should be shared for all threads of the crawler
+    int counter;
+    PriorityQueue<String> queue=new PriorityQueue<String>();
+
+
+
+
+    public MongoDB db;
     public String URL;
 
     /*
     * WebCrawler constructor set's the db and URL data members
     */
-    public WebCrawler(DB db, String URL) {
+    public WebCrawler(MongoDB db, String URL) {
         this.db = db;
         this.URL = URL;
     }
@@ -39,7 +43,6 @@ public class WebCrawler implements Runnable {
     */
     public void crawl() throws Throwable {
         System.out.println(Thread.currentThread().getName() + ": Started Crawling");
-        db.modifyQuery("TRUNCATE records;");
         processPage(URL);
         System.out.println(Thread.currentThread().getName() + ": Finished Crawling");
     }
@@ -59,19 +62,28 @@ public class WebCrawler implements Runnable {
             URL = URL.substring(0, URL.length() - 1);
         }
         // Check if the given URL is already in database
-        String query = "SELECT * FROM records WHERE URL='" + URL + "';";
-        ResultSet result = db.selectQuery(query);
 
-        if (!result.next()) {
+        org.bson.Document result = this.db.getpage(URL);
+
+
+        if (result.isEmpty()) {
             // Store the URL to the database to avoid crawling it again
-            query = "INSERT INTO  `Crawler`.`records` " + "(`URL`) VALUES " + "(?);";
-            PreparedStatement statement = db.conn.prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
-            statement.setString(1, URL);
-            statement.execute();
+//            query = "INSERT INTO  `Crawler`.`records` " + "(`URL`) VALUES " + "(?);";
+//            PreparedStatement statement = db.conn.prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
+//            statement.setString(1, URL);
+//            statement.execute();
 
             try {
                 // Get the HTML document
                 Document doc = Jsoup.connect(URL).ignoreContentType(true).get(); // It may throw an IOException
+
+
+
+                /*
+                * This indicates a problem as the doc used by the MongoDB class is bson
+                * and the one used here is jsoup and it can't be implicitly converted
+                * */
+                /////////////////////db.insertpage(counter , URL , doc);
 
                 System.out.println(URL);
 
