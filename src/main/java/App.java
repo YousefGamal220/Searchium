@@ -1,6 +1,5 @@
 import DB.MongoDB;
 import WebCrawler.WebCrawler;
-import WebIndexer.WebIndexerMain;
 
 public class App {
     public static void main(String[] args) throws Throwable {
@@ -18,6 +17,6 @@ public class App {
         }
 
 
-        WebIndexerMain webIndexerMain = new WebIndexerMain(); // Creating Instance from the class
+        //WebIndexerMain webIndexerMain = new WebIndexerMain(); // Creating Instance from the class
     }
 }
