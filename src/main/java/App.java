@@ -1,14 +1,36 @@
 import DB.MongoDB;
 import WebCrawler.WebCrawler;
 
+import java.io.*;
+import java.util.*;
+
 public class App {
     public static void main(String[] args) throws Throwable {
         System.out.println("Searchium Main is Called");
-        MongoDB db = new MongoDB("Searchium","mongodb://localhost:27017/?readPreference=primary&appname=MongoDB%20Compass&ssl=false");
-        String[] URLs = {"http://www.mathematinu.com/", "http://eng.cu.edu.eg/ar/"};
-        Thread[] crawlers = new Thread[URLs.length];
-        for (int i = 0; i < URLs.length; i++) {
-            crawlers[i] = new Thread(new WebCrawler(db, URLs[i]));
+
+        // Connect to the database
+        MongoDB DB = new MongoDB("Searchium");
+
+        // Creating the list of initial URLs
+        Queue<String> URLs = new LinkedList<>();
+        BufferedReader reader = new BufferedReader(new FileReader("seed.txt"));
+        String URL;
+        while ((URL = reader.readLine()) != null) URLs.add(URL);
+        reader.close();
+
+        // Reading the number of threads
+        Scanner in = new Scanner(System.in);
+        System.out.println("Enter the number of threads you want to run:");
+        int threadsNum = in.nextInt();
+
+        // if the entered number of threads is invalid, then make it equal to the number of URLs in the seed.
+        if (threadsNum < 1 || threadsNum > URLs.size())
+            threadsNum = URLs.size();
+        in.close();
+
+        Thread[] crawlers = new Thread[threadsNum];
+        for (int i = 0; i < threadsNum; i++) {
+            crawlers[i] = new Thread(new WebCrawler(DB, URLs));
             crawlers[i].setName("Crawler " + (i + 1));
             crawlers[i].start();
         }

@@ -1,101 +1,103 @@
 package WebCrawler;
 
 import DB.MongoDB;
-import com.mongodb.client.FindIterable;
 import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
+import org.jsoup.nodes.*;
 import org.jsoup.select.Elements;
 
 import java.io.IOException;
-import java.sql.SQLException;
 import java.util.PriorityQueue;
+import java.util.Queue;
+
 public class WebCrawler implements Runnable {
 
-    ///Those should be shared for all threads of the crawler
-    int counter;
-    PriorityQueue<String> queue=new PriorityQueue<String>();
-
-
-
-
-    public MongoDB db;
-    public String URL;
+    // Those should be shared for all threads of the crawler
+    public static final int MAX_PAGES_COUNT = 5000;
+    public static int counter = 0;
+    MongoDB DB;
+    Queue<String> URLs;
+    PriorityQueue<String> queue = new PriorityQueue<String>();
 
     /*
-    * WebCrawler constructor set's the db and URL data members
-    */
-    public WebCrawler(MongoDB db, String URL) {
-        this.db = db;
-        this.URL = URL;
+     * WebCrawler constructor set's the DB and URL data members
+     */
+    public WebCrawler(MongoDB DB, Queue<String> URLs) {
+        this.DB = DB;
+        this.URLs = URLs;
     }
 
     @Override
     public void run() {
-        try {
-            crawl();
-        } catch (Throwable throwable) {
-            throwable.printStackTrace();
-        }
+        crawl();
     }
 
     /*
-    * The crawl method starts processing the initial URL
-    */
-    public void crawl() throws Throwable {
+     * The crawl method starts processing the URLs from the queue
+     */
+    public void crawl() {
         System.out.println(Thread.currentThread().getName() + ": Started Crawling");
-        processPage(URL);
+
+        // while the number of crawled pages is less than the maximum
+        while (DB.getPagesCount() < MAX_PAGES_COUNT) {
+
+            // lock the following block of code to make sure that two threads doesn't use the same link
+            synchronized (this) {
+
+                // if the URLs queue is not empty then process the first URL in it
+                if (URLs.peek() != null) {
+                    processPage(URLs.remove());
+                }
+            }
+        }
+
         System.out.println(Thread.currentThread().getName() + ": Finished Crawling");
     }
 
     /**
-     * Process pages recursively given the initial URL
+     * Process the page of the given URL
      *
      * @param URL the URL of the page
      */
-    public void processPage(String URL) throws SQLException {
+    public void processPage(String URL) {
+        if (URL == null) return;
+
         // Check if the URL ends with a # to exclude it from the URL
         if (URL.endsWith("#")) {
             URL = URL.substring(0, URL.length() - 1);
         }
+
         // Check if the URL ends with a / to exclude it from the URL
         if (URL.endsWith("/")) {
             URL = URL.substring(0, URL.length() - 1);
         }
+
         // Check if the given URL is already in database
+        if (DB.getpage(URL).iterator().hasNext()) {
+            System.out.println(Thread.currentThread().getName() + ": " + URL + " --> [DUPLICATED]");
+            return;
+        }
 
-        FindIterable result = this.db.getpage(URL);
+        try {
+            // Get the HTML document
+            Document doc = Jsoup.connect(URL).ignoreContentType(true).get().clone(); // It may throw an IOException
 
-
-        if (!result.iterator().hasNext()) {
-            // Store the URL to the database to avoid crawling it again
-//            query = "INSERT INTO  `Crawler`.`records` " + "(`URL`) VALUES " + "(?);";
-//            PreparedStatement statement = db.conn.prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
-//            statement.setString(1, URL);
-//            statement.execute();
-            System.out.println("New adding");
-            try {
-                // Get the HTML document
-                Document doc = Jsoup.connect(URL).ignoreContentType(true).get().clone(); // It may throw an IOException
-
-
-
+            // if the number of crawled pages is less than the maximum
+            if (DB.getPagesCount() < MAX_PAGES_COUNT) {
                 /*
-                * This indicates a problem as the doc used by the MongoDB class is bson
-                * and the one used here is jsoup and it can't be implicitly converted
-                * */
-                db.insertpage(counter , URL , doc.html());
+                 * This indicates a problem as the doc used by the MongoDB class is bson
+                 * and the one used here is jsoup and it can't be implicitly converted
+                 */
+                DB.insertpage(counter++, URL, doc.html());
 
-                System.out.println(URL);
-
-                // Get all the links and recursively call the processPage method
+                // Get all the links in the page and add them to the end of the queue
                 Elements questions = doc.select("a[href]");
-//                for (Element link : questions) {
-//                    if (link.attr("abs:href").contains("http")) {
-//                        processPage(link.attr("abs:href"));
-//                    }
-//                }
-            } catch (IOException ignored) { // We ignored the catch block as we doesn't want it to do anything with exception
+                for (Element link : questions) {
+                    if (link.attr("abs:href").contains("http")) {
+                        URLs.add(link.attr("abs:href"));
+                    }
+                }
             }
+        } catch (IOException ignored) { // We ignored the catch block as we doesn't want it to do anything with exception
         }
     }
 }
