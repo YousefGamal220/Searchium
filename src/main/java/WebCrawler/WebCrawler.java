@@ -12,7 +12,7 @@ import java.util.Queue;
 public class WebCrawler implements Runnable {
 
     // Those should be shared for all threads of the crawler
-    public static final int MAX_PAGES_COUNT = 5000;
+    public static final int MAX_PAGES_COUNT = 50;
     public static int counter = 0;
     MongoDB DB;
     Queue<String> URLs;
@@ -41,13 +41,18 @@ public class WebCrawler implements Runnable {
         while (DB.getPagesCount() < MAX_PAGES_COUNT) {
 
             // lock the following block of code to make sure that two threads doesn't use the same link
-            synchronized (this) {
 
                 // if the URLs queue is not empty then process the first URL in it
-                if (URLs.peek() != null) {
-                    processPage(URLs.remove());
-                }
-            }
+            String url="";
+           synchronized (this) {
+               if (URLs.peek() != null) {
+                   url = URLs.remove();
+               }
+           }
+            System.out.println("Crawler : "+Thread.currentThread().getName() + " will process page : "+url);
+
+            processPage(url);
+
         }
 
         System.out.println(Thread.currentThread().getName() + ": Finished Crawling");
@@ -60,7 +65,7 @@ public class WebCrawler implements Runnable {
      */
     public void processPage(String URL) {
         if (URL == null) return;
-
+        if (URL.equals(""))return;
         // Check if the URL ends with a # to exclude it from the URL
         if (URL.endsWith("#")) {
             URL = URL.substring(0, URL.length() - 1);
@@ -73,7 +78,7 @@ public class WebCrawler implements Runnable {
 
         // Check if the given URL is already in database
         if (DB.getpage(URL).iterator().hasNext()) {
-            System.out.println(Thread.currentThread().getName() + ": " + URL + " --> [DUPLICATED]");
+            System.out.println(Thread.currentThread().getName() + ": " + URL + " --> [DUPLICATED] that entered the queue, will not enter the database");
             return;
         }
 
@@ -87,17 +92,38 @@ public class WebCrawler implements Runnable {
                  * This indicates a problem as the doc used by the MongoDB class is bson
                  * and the one used here is jsoup and it can't be implicitly converted
                  */
-                DB.insertpage(counter++, URL, doc.html());
+                synchronized (this)
+                {
+                    counter++;
+                }
+                DB.insertpage(counter, URL, doc.html());
 
                 // Get all the links in the page and add them to the end of the queue
                 Elements questions = doc.select("a[href]");
                 for (Element link : questions) {
+                    System.out.println(link);
                     if (link.attr("abs:href").contains("http")) {
-                        URLs.add(link.attr("abs:href"));
+                        // Check if the given URL is already in database
+                        String link_url =link.attr("abs:href") ;
+
+                        if (DB.getpage(link_url).iterator().hasNext()) {
+                            System.out.println(Thread.currentThread().getName() + ": " + link_url + " --> [DUPLICATED] and will not enter the queue");
+                        }
+                        else {
+                            synchronized (this) {
+                                URLs.add(link_url);
+                            }
+                        }
+
+
+
                     }
                 }
             }
         } catch (IOException ignored) { // We ignored the catch block as we doesn't want it to do anything with exception
         }
+
+        System.out.println(Thread.currentThread().getName() + ": " + "finished crawling :" +URL);
+
     }
 }
