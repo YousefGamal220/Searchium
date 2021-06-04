@@ -69,6 +69,7 @@ public class Tokenizer {
      */
     public static List<List<String>> tokenizeCorpus(String corpus, String splitter)
     {
+
         List<String> sentences = new ArrayList<String>(Arrays.asList(corpus.split(splitter)));
         List<List<String>> tokenizedCorpus = new ArrayList<List<String>>();
         Consumer<String> tokenization = sentence -> tokenizedCorpus.add(tokenizeWord(sentence));
