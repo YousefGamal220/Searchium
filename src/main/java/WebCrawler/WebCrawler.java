@@ -58,21 +58,6 @@ public class WebCrawler implements Runnable {
     public void processPage(String URL) {
         if (URL == null) return;
         if (URL.equals(""))return;
-        // Check if the URL ends with a # to exclude it from the URL
-        if (URL.endsWith("#")) {
-            URL = URL.substring(0, URL.length() - 1);
-        }
-
-        // Check if the URL ends with a / to exclude it from the URL
-        if (URL.endsWith("/")) {
-            URL = URL.substring(0, URL.length() - 1);
-        }
-
-        // Check if the given URL is already in database
-        if (DB.getpage(URL).iterator().hasNext()) {
-            System.out.println(Thread.currentThread().getName() + ": " + URL + " --> [DUPLICATED] that entered the seed, will not enter the database");
-            return;
-        }
 
         try {
             // Get the HTML document
