@@ -24,7 +24,7 @@ public class Tokenizer {
          * Output: ["Welcome", "to", "Searchium"]
          */
 
-        return new ArrayList<String>(Arrays.asList(sentence.split(" ")));
+        return new ArrayList<String>(Arrays.asList(sentence.toLowerCase().split(" ")));
     }
 
     /**
