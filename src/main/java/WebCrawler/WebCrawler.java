@@ -6,7 +6,11 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.URI;
+import java.net.URL;
 
 public class WebCrawler implements Runnable {
 
@@ -38,18 +42,55 @@ public class WebCrawler implements Runnable {
         while (DB.getPagesCount() < MAX_PAGES_COUNT) {
 
 
-                // if the URLs queue is not empty then process the first URL in it
-            String url=DB.popSeed().getString("url");
+            // if the URLs queue is not empty then process the first URL in it
+            String url = "";
+            if (DB.getSeedCount() > 0)
+            {       url = DB.popSeed().getString("url");
 
-            System.out.println("Crawler : "+Thread.currentThread().getName() + " will process page : "+url);
+            System.out.println("Crawler : " + Thread.currentThread().getName() + " will process page : " + url);
 
-            processPage(url);
-
+            if (checkRobots(url)) {
+                processPage(url);
+                }
+            }
         }
 
         System.out.println(Thread.currentThread().getName() + ": Finished Crawling");
     }
 
+    public boolean checkRobots(String link)
+    {
+        try
+        {
+            URI uri = new URI(link);
+            String robot = "https://" + uri.getHost();
+            robot += "/robots.txt";
+            System.out.println(robot);
+            BufferedReader in = new BufferedReader(new InputStreamReader(new URL(robot).openStream()));
+            String line = null;
+            while((line = in.readLine()) != null) {
+                System.out.println(line);
+            }
+        } catch (Exception e) {
+            System.out.println("ErRRRRRRROR");
+        }
+        try
+        {
+            URI uri = new URI(link);
+            String robot = "http://" + uri.getHost();
+            robot += "/robots.txt";
+            System.out.println(robot);
+            BufferedReader in = new BufferedReader(new InputStreamReader(new URL(robot).openStream()));
+            String line = null;
+            while((line = in.readLine()) != null) {
+                System.out.println(line);
+            }
+        } catch (Exception e) {
+            System.out.println("ErRRRRRRROR");
+        }
+
+        return true;
+    }
     /**
      * Process the page of the given URL
      *
@@ -79,6 +120,7 @@ public class WebCrawler implements Runnable {
                 // Get all the links in the page and add them to the end of the queue
 
                 if(DB.getSeedCount()+DB.getPagesCount() >= MAX_PAGES_COUNT) return;
+
                 Elements questions = doc.select("a[href]");
                 for (Element link : questions) {
                     if (link.attr("abs:href").contains("http")) {
