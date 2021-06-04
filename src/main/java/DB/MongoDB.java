@@ -112,4 +112,9 @@ public class MongoDB {
     public int getPagesCount() {
         return (int)CrawlerCollection.countDocuments();
     }
+
+    public FindIterable<Document> getAllPages() {
+        return CrawlerCollection.find(new org.bson.Document());
+        //This will return the whole document with the url & content
+    }
 }
