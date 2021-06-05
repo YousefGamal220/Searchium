@@ -1,43 +1,55 @@
 import DB.MongoDB;
 import WebCrawler.WebCrawler;
-import WebIndexer.WebIndexerMain;
 import WebIndexer.StopWordsRemover;
+import WebIndexer.WebIndexerMain;
 import com.mongodb.client.FindIterable;
-import com.mongodb.client.MongoCollection;
 import org.bson.Document;
 
 import java.util.ArrayList;
 import java.util.Iterator;
+
 import java.util.List;
 import java.util.Scanner;
 
 public class App {
     public static void main(String[] args) throws Throwable {
-        System.out.println("Searchium Main is Called");
+        System.out.println("Searchium Main is called..");
+
+        // Reading the maximum pages to crawl
+        System.out.println("Enter the number of maximum documents to crawl");
+        Scanner in = new Scanner(System.in);
+        int MAX_PAGES_COUNT = in.nextInt();
 
         // Connect to the database
-        MongoDB DB = new MongoDB("Searchium");
-
+        MongoDB DB = new MongoDB("Searchium", MAX_PAGES_COUNT);
 
         // Reading the number of threads
-        /*Scanner in = new Scanner(System.in);
         System.out.println("Enter the number of threads you want to run:");
         int threadsNum = in.nextInt();
-
-        // if the entered number of threads is invalid, then make it equal to the number of URLs in the seed.
-        if (threadsNum < 1 || threadsNum > DB.getSeedCount())
-            threadsNum = DB.getSeedCount();
         in.close();
-        WebCrawler TheCrawler = new WebCrawler(DB);
+
+        // if the entered number of threads is invalid, then make it equal to 1.
+        if (threadsNum < 1) {
+            System.out.println("Invalid number of threads");
+            System.out.println("Running the Crawler in a Single thread");
+            threadsNum = 1;
+        }
+
+        // Create the crawler and make the threads start crawling
+        WebCrawler Crawler = new WebCrawler(DB);
+
+
         Thread[] crawlers = new Thread[threadsNum];
         for (int i = 0; i < threadsNum; i++) {
-            crawlers[i] = new Thread(TheCrawler);
+            crawlers[i] = new Thread(Crawler);
             crawlers[i].setName("Crawler " + (i + 1));
             crawlers[i].start();
         }
+
+        // Wait until all the threads finish crawling
         for (Thread crawler : crawlers) {
             crawler.join();
-        }*/
+        }
 
 
         WebIndexerMain webIndexerMain = new WebIndexerMain(DB); // Creating Instance from the class
@@ -45,8 +57,8 @@ public class App {
 
         Iterator<Document> CrawlerCollectionItr = DB.getAllPages().iterator();
         int i = 1;
-        while (CrawlerCollectionItr.hasNext())
-        {
+        while (CrawlerCollectionItr.hasNext()) {
+
             Document d = CrawlerCollectionItr.next();
             String page = d.getString("content");
             String url = d.getString("url");
@@ -56,7 +68,6 @@ public class App {
             i++;
 
         }
-
-
     }
+
 }
