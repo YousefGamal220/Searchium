@@ -24,7 +24,7 @@ public class WebCrawler implements Runnable {
      */
     public WebCrawler(MongoDB DB) {
         this.DB = DB;
-        this.MAX_PAGES_COUNT = DB.MAX_PAGES_COUNT;
+        MAX_PAGES_COUNT = MongoDB.MAX_PAGES_COUNT;
     }
 
     @Override
@@ -40,17 +40,14 @@ public class WebCrawler implements Runnable {
 
         // while the number of crawled pages is less than the maximum
         while (DB.getPagesCount() < MAX_PAGES_COUNT) {
-
-
-            // if the URLs queue is not empty then process the first URL in it
             String url = "";
-            if (DB.getSeedCount() > 0)
-            {       url = DB.popSeed().getString("url");
+            if (DB.getSeedCount() > 0) {
+                url = DB.popSeed().getString("url");
 
-            System.out.println("Crawler : " + Thread.currentThread().getName() + " will process page : " + url);
+                System.out.println("Crawler : " + Thread.currentThread().getName() + " will process page : " + url);
 
-            if (checkRobots(url)) {
-                processPage(url);
+                if (checkRobots(url)) {
+                    processPage(url);
                 }
             }
         }
@@ -58,39 +55,44 @@ public class WebCrawler implements Runnable {
         System.out.println(Thread.currentThread().getName() + ": Finished Crawling");
     }
 
-    public boolean checkRobots(String link)
-    {
-        try
-        {
-            URI uri = new URI(link);
-            String robot = "https://" + uri.getHost();
-            robot += "/robots.txt";
+    public boolean checkRobots(String link) {
+        System.out.println(link);
+        try {
+            // Create a URL instance from the link
+            URL url = new URL(link);
+
+            // Build the proper URL to the robots.txt file
+            String origin = url.getProtocol() + "://" + url.getHost();
+            String robot = origin + "/robots.txt";
             System.out.println(robot);
+
+            // Create a BufferedReader to read the robots.txt file
             BufferedReader in = new BufferedReader(new InputStreamReader(new URL(robot).openStream()));
-            String line = null;
-            while((line = in.readLine()) != null) {
-                System.out.println(line);
+
+            String line;
+
+            // read the robots.txt until you find the user-agent line
+            while ((line = in.readLine()) != null) {
+                if (line.startsWith("User-agent: *"))
+                    break;
             }
-        } catch (Exception e) {
-            System.out.println("ErRRRRRRROR");
-        }
-        try
-        {
-            URI uri = new URI(link);
-            String robot = "http://" + uri.getHost();
-            robot += "/robots.txt";
-            System.out.println(robot);
-            BufferedReader in = new BufferedReader(new InputStreamReader(new URL(robot).openStream()));
-            String line = null;
-            while((line = in.readLine()) != null) {
-                System.out.println(line);
+
+            while ((line = in.readLine()) != null) {
+                if (line.startsWith("Disallow: ") && link.startsWith(origin + line.substring(10))) {
+                    System.out.println("Link Blocked");
+                    return false;
+                }
             }
+
         } catch (Exception e) {
-            System.out.println("ErRRRRRRROR");
+            System.out.println("Error in parsing robots.txt");
+            System.out.println(e);
+            return false;
         }
 
         return true;
     }
+
     /**
      * Process the page of the given URL
      *
@@ -98,7 +100,7 @@ public class WebCrawler implements Runnable {
      */
     public void processPage(String URL) {
         if (URL == null) return;
-        if (URL.equals(""))return;
+        if (URL.equals("")) return;
 
         try {
             // Get the HTML document
@@ -110,22 +112,22 @@ public class WebCrawler implements Runnable {
                  * This indicates a problem as the doc used by the MongoDB class is bson
                  * and the one used here is jsoup and it can't be implicitly converted
                  */
-                synchronized (this)
-                {
+                synchronized (this) {
                     counter++;
                 }
 
                 DB.insertpage(counter, URL, doc.html());
 
-                // Get all the links in the page and add them to the end of the queue
+                if (DB.getSeedCount() + DB.getPagesCount() >= MAX_PAGES_COUNT) return;
 
-                if(DB.getSeedCount()+DB.getPagesCount() >= MAX_PAGES_COUNT) return;
-
+                // Get all the links in the page
                 Elements questions = doc.select("a[href]");
+
                 for (Element link : questions) {
                     if (link.attr("abs:href").contains("http")) {
-                        // Check if the given URL is already in database
-                        String link_url =link.attr("abs:href") ;
+
+                        // Check if the URL ends with a # to exclude it from the URL
+                        String link_url = link.attr("abs:href");
                         if (link_url.endsWith("#")) {
                             link_url = link_url.substring(0, link_url.length() - 1);
                         }
@@ -135,22 +137,18 @@ public class WebCrawler implements Runnable {
                             link_url = link_url.substring(0, link_url.length() - 1);
                         }
 
-                        if (DB.getpage(link_url).iterator().hasNext() || DB.getSeed(link_url).iterator().hasNext() ) {
+                        if (DB.getpage(link_url).iterator().hasNext() || DB.getSeed(link_url).iterator().hasNext()) {
                             System.out.println(Thread.currentThread().getName() + ": " + link_url + " --> [DUPLICATED] and will not enter the Seed");
+                        } else {
+                            DB.insertSeed(link_url);
                         }
-                        else {
-                                DB.insertSeed(link_url);
-                        }
-
-
-
                     }
                 }
             }
         } catch (IOException ignored) { // We ignored the catch block as we doesn't want it to do anything with exception
         }
 
-        System.out.println(Thread.currentThread().getName() + ": " + "finished crawling :" +URL);
+        System.out.println(Thread.currentThread().getName() + ": " + "finished crawling :" + URL);
 
     }
 }
