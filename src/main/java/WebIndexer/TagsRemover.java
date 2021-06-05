@@ -19,8 +19,8 @@ public class TagsRemover {
          * Output: "Welcome to Searchium"
          */
 
-        page = page.replaceAll("\\<.*?\\>", " ");
-        page = StringUtils.normalizeSpace(page);
+        //page = page.replaceAll("\\<.*?\\>", " ");
+        //page = StringUtils.normalizeSpace(page);
 
         return page;
     }

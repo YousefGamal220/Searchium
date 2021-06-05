@@ -36,7 +36,7 @@ public class App {
         }
 
         // Create the crawler and make the threads start crawling
-        WebCrawler Crawler = new WebCrawler(DB);
+       WebCrawler Crawler = new WebCrawler(DB);
 
 
         Thread[] crawlers = new Thread[threadsNum];
@@ -51,9 +51,9 @@ public class App {
             crawler.join();
         }
 
-
-        WebIndexerMain webIndexerMain = new WebIndexerMain(DB); // Creating Instance from the class
         List<String> stop_words = StopWordsRemover.buildStopWordsCorpus("stopping_words.txt");
+        WebIndexerMain webIndexerMain = new WebIndexerMain(DB, stop_words); // Creating Instance from the class
+
 
         Iterator<Document> CrawlerCollectionItr = DB.getAllPages().iterator();
         int i = 1;
@@ -64,10 +64,11 @@ public class App {
             String url = d.getString("url");
 
             System.out.printf("index page: %d url:%s \n", i, url);
-            webIndexerMain.runIndexer(page, url, stop_words);
+            webIndexerMain.runIndexer(page, url);
             i++;
-
         }
+
+        webIndexerMain.updateIDF(i - 1);
     }
 
 }

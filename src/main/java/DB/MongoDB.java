@@ -6,6 +6,7 @@ import com.mongodb.DBObject;
 import com.mongodb.MongoClientSettings;
 import com.mongodb.client.*;
 import org.bson.Document;
+import java.lang.Math;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -23,6 +24,7 @@ public class MongoDB {
     MongoCollection<Document> wordsCollection;
     MongoCollection<Document> SeedCollection;
     public static int MAX_PAGES_COUNT;
+    int total_indexed_pages = 0;
 
 
     public MongoDB(String Database , int max) {
@@ -152,7 +154,7 @@ public class MongoDB {
 
     public void insertWordInd(String word, String url)
     {
-        org.bson.Document wordDoc = new org.bson.Document("word", word);
+        org.bson.Document wordDoc = new org.bson.Document("word", word).append("IDF", 0.0f);
 
         ArrayList<DBObject> array = new ArrayList<DBObject>();
         BasicDBObject document = new BasicDBObject();
@@ -186,6 +188,7 @@ public class MongoDB {
 
     public void increaseWordCount(String word, String url)
     {
+
         int old_val = -1;
 
         BasicDBObject query = new BasicDBObject();
@@ -239,6 +242,7 @@ public class MongoDB {
             Document d = new Document();
             d.put("url", url);
             d.put("counts_in", 1);
+            d.put("tf", 0.0f);
             array.add(d);
 
             BasicDBObject newDocument = new BasicDBObject();
@@ -269,5 +273,38 @@ public class MongoDB {
         updateObject.put("$set", newDocument); // (3)
 
         IndexedPages.updateOne(query, updateObject); // (4
+
+        total_indexed_pages++;
     }
+
+
+    public void calcTF(String word, String url, int t_n)
+    {
+        Document d = wordsCollection.find(new org.bson.Document("word", word).append("pages.url",url))
+                .iterator().next();
+
+        int t = 0;
+        for (Document page : d.getList("pages", Document.class))
+        {
+            if (page.getString("url").equals(url))
+                t = page.getInteger("counts_in");
+        }
+
+        wordsCollection.updateOne(new org.bson.Document("word", word).append("pages.url", url),
+                new org.bson.Document("$set", new org.bson.Document("pages.$.TF", (float) t / t_n)));
+
+    }
+
+    public void calacIDF(int t_all)
+    {
+        Iterator<Document> wordItr = wordsCollection.find(new org.bson.Document()).iterator();
+        while (wordItr.hasNext())
+        {
+            Document wordDoc = wordItr.next();
+            int t = wordDoc.getList("pages", Document.class).size();
+            wordsCollection.updateOne(new org.bson.Document("word", wordDoc.getString("word")),
+                    new org.bson.Document("$set", new org.bson.Document("IDF", Math.log((float)total_indexed_pages / t))));
+        }
+    }
+
 }

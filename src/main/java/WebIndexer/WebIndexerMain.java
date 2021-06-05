@@ -25,28 +25,30 @@ import org.jsoup.select.Elements;
 public class WebIndexerMain {
 
     MongoDB DB;
+    List<String>stop_words;
 
-    public WebIndexerMain(MongoDB DB) {
+    public WebIndexerMain(MongoDB DB,List<String> stop_words) {
         this.DB = DB;
+         this.stop_words = stop_words;
 
     }
 
-    public  void runIndexer(String page, String page_url, List<String> stop_words) throws IOException {
+    public  void runIndexer(String page, String page_url) throws IOException {
         Iterator<Document> pageItr = DB.findPageInd(page_url).iterator();
         if (pageItr.hasNext() && DB.isIndexed(page_url))
             return;
 
-        String page_content =  TagsRemover.removeTags(page);
-        page_content = page_content.replaceAll("[^a-zA-Z]", " ");
-        List<String> words = Tokenizer.tokenizeWord(page_content);
-        StopWordsRemover.removeStopWord(words, stop_words);
 
+
+        page = page.replaceAll("[^a-zA-Z]", " ");
+        List<String> words = Tokenizer.tokenizeWord(page);
+        StopWordsRemover.removeStopWord(words, this.stop_words);
+        int count = words.size();
         if (!pageItr.hasNext())
         {
-            DB.insertPageInd(page_url, words.size());
+            DB.insertPageInd(page_url, count);
             System.out.println("new page added");
         }
-
 
        for (String word : words)
         {
@@ -54,8 +56,6 @@ public class WebIndexerMain {
             {
                 Stemmer s = new Stemmer(word);
                 String stemed_word = s.toString();
-
-                //System.out.println(word);
                 Iterator<Document> wordItr = DB.getWordInd(stemed_word).iterator();
                 if (!wordItr.hasNext())
                 {
@@ -79,6 +79,21 @@ public class WebIndexerMain {
             }
         }
 
+        for (String word : words) {
+            if (word.length() != 0) {
+                Stemmer s = new Stemmer(word);
+                String stemed_word = s.toString();
+                DB.calcTF(stemed_word, page_url, count);
+            }
+        }
         DB.finishPageIndex(page_url);
     }
+
+    public void updateIDF(int t_all)
+    {
+        DB.calacIDF(t_all);
+    }
+
+
+
 }
