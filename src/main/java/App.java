@@ -1,10 +1,13 @@
 import DB.MongoDB;
 import WebCrawler.WebCrawler;
+import WebIndexer.WebIndexerMain;
+import WebIndexer.StopWordsRemover;
+import com.mongodb.client.FindIterable;
+import com.mongodb.client.MongoCollection;
+import org.bson.Document;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.util.LinkedList;
-import java.util.Queue;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
 
 public class App {
@@ -14,12 +17,6 @@ public class App {
         // Connect to the database
         MongoDB DB = new MongoDB("Searchium");
 
-        // Creating the list of initial URLs
-        Queue<String> URLs = new LinkedList<>();
-        BufferedReader reader = new BufferedReader(new FileReader("seed.txt"));
-        String URL;
-        while ((URL = reader.readLine()) != null) URLs.add(URL);
-        reader.close();
 
         // Reading the number of threads
         Scanner in = new Scanner(System.in);
@@ -27,10 +24,10 @@ public class App {
         int threadsNum = in.nextInt();
 
         // if the entered number of threads is invalid, then make it equal to the number of URLs in the seed.
-        if (threadsNum < 1 || threadsNum > URLs.size())
-            threadsNum = URLs.size();
+        if (threadsNum < 1 || threadsNum > DB.getSeedCount())
+            threadsNum = DB.getSeedCount();
         in.close();
-        WebCrawler TheCrawler = new WebCrawler(DB, URLs);
+        WebCrawler TheCrawler = new WebCrawler(DB);
         Thread[] crawlers = new Thread[threadsNum];
         for (int i = 0; i < threadsNum; i++) {
             crawlers[i] = new Thread(TheCrawler);
@@ -42,6 +39,17 @@ public class App {
         }
 
 
-        //WebIndexerMain webIndexerMain = new WebIndexerMain(); // Creating Instance from the class
+        WebIndexerMain webIndexerMain = new WebIndexerMain(); // Creating Instance from the class
+        List<String> stop_words = StopWordsRemover.buildStopWordsCorpus("stopping_words.txt");
+        FindIterable<Document> CrawlerCollection = DB.getAllPages();
+        while (CrawlerCollection.iterator().hasNext())
+        {
+            String page = CrawlerCollection.iterator().next().getString("content");
+            webIndexerMain.runIndexer(page, stop_words);
+
+            break;
+
+        }
+
     }
 }
