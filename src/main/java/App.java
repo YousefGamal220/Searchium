@@ -63,6 +63,7 @@ public class App {
             i++;
         }
 
-        webIndexerMain.updateIDF();
+        webIndexerMain.updateIndexerDB();
+
     }
 }
