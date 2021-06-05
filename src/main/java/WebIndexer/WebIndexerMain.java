@@ -38,8 +38,6 @@ public class WebIndexerMain {
         if (pageItr.hasNext() && DB.isIndexed(page_url))
             return;
 
-
-
         page = page.replaceAll("[^a-zA-Z]", " ");
         List<String> words = Tokenizer.tokenizeWord(page);
         StopWordsRemover.removeStopWord(words, this.stop_words);
@@ -89,9 +87,9 @@ public class WebIndexerMain {
         DB.finishPageIndex(page_url);
     }
 
-    public void updateIDF(int t_all)
+    public void updateIDF()
     {
-        DB.calacIDF(t_all);
+        DB.calacIDF();
     }
 
 

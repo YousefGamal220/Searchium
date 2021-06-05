@@ -154,7 +154,7 @@ public class MongoDB {
 
     public void insertWordInd(String word, String url)
     {
-        org.bson.Document wordDoc = new org.bson.Document("word", word).append("IDF", 0.0f);
+        org.bson.Document wordDoc = new org.bson.Document("word", word);
 
         ArrayList<DBObject> array = new ArrayList<DBObject>();
         BasicDBObject document = new BasicDBObject();
@@ -188,39 +188,27 @@ public class MongoDB {
 
     public void increaseWordCount(String word, String url)
     {
+        BasicDBObject query = new BasicDBObject();
+        query.put("word", word);
+        Iterator<Document> wordDocItr = wordsCollection.find(query).iterator();
 
         int old_val = -1;
 
-        BasicDBObject query = new BasicDBObject();
-        query.put("word", word);
-
-        Iterator<Document> wordDocItr = wordsCollection.find(query).iterator();
         if (wordDocItr.hasNext())
         {
             ArrayList<Document> array = new ArrayList<Document>();
 
             for (Document page : wordDocItr.next().getList("pages", Document.class))
             {
-                if (!page.getString("url").equals(url))
+                if (page.getString("url").equals(url))
                 {
-                    array.add(page);
-                }
-                else
-                {
-                    Document d = new Document();
-                    d.put("url", url);
-                    d.put("counts_in", page.getInteger("counts_in") + 1);
-                    array.add(d);
+                    old_val = page.getInteger("counts_in");
+                    break;
                 }
             }
 
-            BasicDBObject newDocument = new BasicDBObject();
-            newDocument.put("pages", array); // (2)
-
-            BasicDBObject updateObject = new BasicDBObject();
-            updateObject.put("$set", newDocument); // (3)
-
-            wordsCollection.updateOne(query, updateObject); // (4)
+            wordsCollection.updateOne(new org.bson.Document("word", word).append("pages.url", url),
+                    new org.bson.Document("$set", new org.bson.Document("pages.$.counts_in", old_val + 1)));
         }
     }
 
@@ -234,24 +222,8 @@ public class MongoDB {
         {
             ArrayList<Document> array = new ArrayList<Document>();
 
-            for (Document page : wordDocItr.next().getList("pages", Document.class))
-            {
-                array.add(page);
-            }
-
-            Document d = new Document();
-            d.put("url", url);
-            d.put("counts_in", 1);
-            d.put("tf", 0.0f);
-            array.add(d);
-
-            BasicDBObject newDocument = new BasicDBObject();
-            newDocument.put("pages", array); // (2)
-
-            BasicDBObject updateObject = new BasicDBObject();
-            updateObject.put("$set", newDocument); // (3)
-
-            wordsCollection.updateOne(query, updateObject); // (4)
+            wordsCollection.updateOne(new org.bson.Document("word", word).append("pages.url", url),
+                    new org.bson.Document("$set", new org.bson.Document("pages.$.counts_in",  1)));
         }
 
     }
@@ -280,8 +252,7 @@ public class MongoDB {
 
     public void calcTF(String word, String url, int t_n)
     {
-        Document d = wordsCollection.find(new org.bson.Document("word", word).append("pages.url",url))
-                .iterator().next();
+        Document d = wordsCollection.find(new org.bson.Document("word", word)).iterator().next();
 
         int t = 0;
         for (Document page : d.getList("pages", Document.class))
@@ -295,7 +266,7 @@ public class MongoDB {
 
     }
 
-    public void calacIDF(int t_all)
+    public void calacIDF()
     {
         Iterator<Document> wordItr = wordsCollection.find(new org.bson.Document()).iterator();
         while (wordItr.hasNext())
