@@ -1,19 +1,25 @@
 package DB;
 
+import com.mongodb.BasicDBObject;
 import com.mongodb.ConnectionString;
+import com.mongodb.DBObject;
 import com.mongodb.MongoClientSettings;
 import com.mongodb.client.*;
 import org.bson.Document;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Scanner;
 
 public class MongoDB {
     MongoClient mongoClient;
     MongoDatabase database;
     MongoCollection<Document> CrawlerCollection;
-    MongoCollection<Document> IndexerCollection;
+    MongoCollection<Document> IndexedPages;
+    MongoCollection<Document> wordsCollection;
     MongoCollection<Document> SeedCollection;
 
     public static final int MAX_PAGES_COUNT = 500;
@@ -28,7 +34,8 @@ public class MongoDB {
             mongoClient = MongoClients.create(settings);
             database = mongoClient.getDatabase(Database);
             CrawlerCollection = database.getCollection("Crawler");
-            IndexerCollection = database.getCollection("Indexer");
+            IndexedPages = database.getCollection("IndexedPages");
+            wordsCollection = database.getCollection("words");
             SeedCollection = database.getCollection("Seed");
             if (CrawlerCollection.countDocuments() >= MAX_PAGES_COUNT)
             {
@@ -116,5 +123,138 @@ public class MongoDB {
     public FindIterable<Document> getAllPages() {
         return CrawlerCollection.find(new org.bson.Document());
         //This will return the whole document with the url & content
+    }
+
+    // Indexer Interface
+    public void insertPageInd(String url, int count)
+    {
+        org.bson.Document website = new org.bson.Document("url", url).append("count", count).append("finished", false);
+        IndexedPages.insertOne(website);
+    }
+
+    public FindIterable<Document> findPageInd(String url)
+    {
+        return IndexedPages.find(new org.bson.Document("url", url));
+    }
+
+    public void insertWordInd(String word, String url)
+    {
+        org.bson.Document wordDoc = new org.bson.Document("word", word);
+
+        ArrayList<DBObject> array = new ArrayList<DBObject>();
+        BasicDBObject document = new BasicDBObject();
+
+        document.put("url", url);
+        document.put("counts_in", 1);
+        array.add(document);
+        wordDoc.put("pages", array);
+        wordsCollection.insertOne(wordDoc);
+    }
+
+    public FindIterable<Document> getWordInd(String word)
+    {
+        return wordsCollection.find(new org.bson.Document("word", word));
+    }
+
+    public List<String> getUrlsForWordInd(String word)
+    {
+        Iterator<Document> itr = wordsCollection.find(new org.bson.Document("word", word)).iterator();
+        List<String>urls = new ArrayList<String>();
+        if (itr.hasNext())
+        {
+            for (Document page : itr.next().getList("pages", Document.class))
+            {
+                urls.add(page.getString("url"));
+            }
+
+        }
+        return urls;
+    }
+
+    public void increaseWordCount(String word, String url)
+    {
+        int old_val = -1;
+
+        BasicDBObject query = new BasicDBObject();
+        query.put("word", word);
+
+        Iterator<Document> wordDocItr = wordsCollection.find(query).iterator();
+        if (wordDocItr.hasNext())
+        {
+            ArrayList<Document> array = new ArrayList<Document>();
+
+            for (Document page : wordDocItr.next().getList("pages", Document.class))
+            {
+                if (!page.getString("url").equals(url))
+                {
+                    array.add(page);
+                }
+                else
+                {
+                    Document d = new Document();
+                    d.put("url", url);
+                    d.put("counts_in", page.getInteger("counts_in") + 1);
+                    array.add(d);
+                }
+            }
+
+            BasicDBObject newDocument = new BasicDBObject();
+            newDocument.put("pages", array); // (2)
+
+            BasicDBObject updateObject = new BasicDBObject();
+            updateObject.put("$set", newDocument); // (3)
+
+            wordsCollection.updateOne(query, updateObject); // (4)
+        }
+    }
+
+    public void insertNewUrl(String word, String url)
+    {
+        BasicDBObject query = new BasicDBObject();
+        query.put("word", word);
+
+        Iterator<Document> wordDocItr = wordsCollection.find(query).iterator();
+        if (wordDocItr.hasNext())
+        {
+            ArrayList<Document> array = new ArrayList<Document>();
+
+            for (Document page : wordDocItr.next().getList("pages", Document.class))
+            {
+                array.add(page);
+            }
+
+            Document d = new Document();
+            d.put("url", url);
+            d.put("counts_in", 1);
+            array.add(d);
+
+            BasicDBObject newDocument = new BasicDBObject();
+            newDocument.put("pages", array); // (2)
+
+            BasicDBObject updateObject = new BasicDBObject();
+            updateObject.put("$set", newDocument); // (3)
+
+            wordsCollection.updateOne(query, updateObject); // (4)
+        }
+
+    }
+
+    public boolean isIndexed(String url)
+    {
+        return IndexedPages.find(new org.bson.Document("url", url)).iterator().next().getBoolean("finished");
+    }
+
+    public void finishPageIndex(String url)
+    {
+        BasicDBObject query = new BasicDBObject();
+        query.put("url", url); // (1)
+
+        BasicDBObject newDocument = new BasicDBObject();
+        newDocument.put("finished", true); // (2)
+
+        BasicDBObject updateObject = new BasicDBObject();
+        updateObject.put("$set", newDocument); // (3)
+
+        IndexedPages.updateOne(query, updateObject); // (4
     }
 }

@@ -7,6 +7,7 @@ import com.mongodb.client.MongoCollection;
 import org.bson.Document;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Scanner;
 
@@ -19,7 +20,7 @@ public class App {
 
 
         // Reading the number of threads
-        Scanner in = new Scanner(System.in);
+        /*Scanner in = new Scanner(System.in);
         System.out.println("Enter the number of threads you want to run:");
         int threadsNum = in.nextInt();
 
@@ -36,20 +37,26 @@ public class App {
         }
         for (Thread crawler : crawlers) {
             crawler.join();
-        }
+        }*/
 
 
-        WebIndexerMain webIndexerMain = new WebIndexerMain(); // Creating Instance from the class
+        WebIndexerMain webIndexerMain = new WebIndexerMain(DB); // Creating Instance from the class
         List<String> stop_words = StopWordsRemover.buildStopWordsCorpus("stopping_words.txt");
-        FindIterable<Document> CrawlerCollection = DB.getAllPages();
-        while (CrawlerCollection.iterator().hasNext())
-        {
-            String page = CrawlerCollection.iterator().next().getString("content");
-            webIndexerMain.runIndexer(page, stop_words);
 
-            break;
+        Iterator<Document> CrawlerCollectionItr = DB.getAllPages().iterator();
+        int i = 1;
+        while (CrawlerCollectionItr.hasNext())
+        {
+            Document d = CrawlerCollectionItr.next();
+            String page = d.getString("content");
+            String url = d.getString("url");
+
+            System.out.printf("index page: %d url:%s \n", i, url);
+            webIndexerMain.runIndexer(page, url, stop_words);
+            i++;
 
         }
+
 
     }
 }
