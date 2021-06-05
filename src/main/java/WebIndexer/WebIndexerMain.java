@@ -4,6 +4,8 @@ import DB.MongoDB;
 import org.bson.Document;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 
@@ -22,60 +24,61 @@ public class WebIndexerMain {
 
     MongoDB DB;
     List<String> stop_words;
+    HashMap<String, List<Document>>index;
 
     public WebIndexerMain(MongoDB DB, List<String> stop_words) {
         this.DB = DB;
         this.stop_words = stop_words;
+        index = new HashMap<String, List<Document>>();
 
     }
 
     public void runIndexer(String page, String page_url) throws IOException {
-        Iterator<Document> pageItr = DB.findPageInd(page_url).iterator();
-        if (pageItr.hasNext() && DB.isIndexed(page_url))
-            return;
 
+        HashMap<String, Integer>words_count = new HashMap<String, Integer>();
         page = page.replaceAll("[^a-zA-Z]", " ");
         List<String> words = Tokenizer.tokenizeWord(page);
         StopWordsRemover.removeStopWord(words, this.stop_words);
         int count = words.size();
-        if (!pageItr.hasNext()) {
-            DB.insertPageInd(page_url, count);
-            System.out.println("new page added");
-        }
 
         for (String word : words) {
             if (word.length() != 0) {
                 Stemmer s = new Stemmer(word);
                 String stemmed_word = s.toString();
-                Iterator<Document> wordItr = DB.getWordInd(stemmed_word).iterator();
-                if (!wordItr.hasNext()) {
-                    DB.insertWordInd(stemmed_word, page_url);
-                } else {
-                    boolean found = false;
-                    for (String url : DB.getUrlsForWordInd(stemmed_word)) {
-                        if (page_url.equals(url)) {
-                            found = true;
-                            DB.increaseWordCount(stemmed_word, page_url);
-                            break;
-                        }
-                    }
-                    if (!found)
-                        DB.insertNewUrl(stemmed_word, page_url);
+
+                if (words_count.containsKey(stemmed_word)) {
+                    words_count.put(word, words_count.get(stemmed_word) + 1);
+                }
+                else {
+                    words_count.put(word,  1);
                 }
             }
         }
 
-        for (String word : words) {
-            if (word.length() != 0) {
-                Stemmer s = new Stemmer(word);
-                String stemmed_word = s.toString();
-                DB.calcTF(stemmed_word, page_url, count);
+        for (String stemmed_word : words_count.keySet())
+        {
+            Document d = new Document();
+            d.append("url", page_url);
+            d.append("tf", words_count.get(stemmed_word) / (float) count);
+            if (index.containsKey(stemmed_word)) {
+                index.get(stemmed_word).add(d);
+            }
+            else{
+                List<Document> arr = new ArrayList<>();
+                arr.add(d);
+                index.put(stemmed_word, arr);
             }
         }
-        DB.finishPageIndex(page_url);
+
+
     }
 
-    public void updateIDF() {
-        DB.calacIDF();
+    public void updateIndexerDB()
+    {
+        for (String word : index.keySet())
+        {
+            DB.insertWord(word, index.get(word));
+        }
     }
+
 }
