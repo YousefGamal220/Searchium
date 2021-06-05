@@ -69,8 +69,8 @@ public class WebCrawler implements Runnable {
             // Build the proper URL to the robots.txt file
             String origin = url.getProtocol() + "://" + url.getHost();
             String robot = origin + "/robots.txt";
-            System.out.println(link);
-            System.out.println(robot);
+//            System.out.println(link);
+//            System.out.println(robot);
 
             // Create a BufferedReader to read the robots.txt file
             BufferedReader in = new BufferedReader(new InputStreamReader(new URL(robot).openStream()));
@@ -88,9 +88,6 @@ public class WebCrawler implements Runnable {
                     System.out.println(link + " --> [Blocked]");
                     notBlocked = false;
                 }
-            }
-
-            while ((line = in.readLine()) != null) {
                 if (line.startsWith("Allow: ") && link.startsWith(origin + line.substring(8))) {
                     notBlocked = true;
                 }
@@ -133,9 +130,10 @@ public class WebCrawler implements Runnable {
                 if (DB.getSeedCount() + DB.getPagesCount() >= MAX_PAGES_COUNT) return;
 
                 // Get all the links in the page
-                Elements questions = doc.select("a[href]");
+                Elements links = doc.select("a[href]");
 
-                for (Element link : questions) {
+                for (Element link : links) {
+                    if (DB.getSeedCount() + DB.getPagesCount() >= MAX_PAGES_COUNT) return;
                     if (link.attr("abs:href").contains("http")) {
                         // Check if the URL ends with a # to exclude it from the URL
                         String link_url = link.attr("abs:href");
@@ -149,7 +147,7 @@ public class WebCrawler implements Runnable {
                         }
 
                         if (DB.getPage(link_url).iterator().hasNext() || DB.getSeed(link_url).iterator().hasNext()) {
-                            // System.out.println(Thread.currentThread().getName() + ": " + link_url + " --> [DUPLICATED]");
+                             System.out.println(Thread.currentThread().getName() + ": " + link_url + " --> [DUPLICATED]");
                         } else if (checkRobots(link_url)) {
                             DB.insertSeed(link_url);
                             synchronized (this) {
@@ -164,7 +162,7 @@ public class WebCrawler implements Runnable {
 
         } catch (IOException e) {
             // We ignored the catch block as we doesn't want it to do anything with exception
-            e.fillInStackTrace();
+            e.printStackTrace();
         }
     }
 }
