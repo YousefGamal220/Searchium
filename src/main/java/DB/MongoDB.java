@@ -10,12 +10,12 @@ import java.io.FileNotFoundException;
 import java.util.Scanner;
 
 public class MongoDB {
-    public static final int MAX_PAGES_COUNT = 500;
+    public static int MAX_PAGES_COUNT;
     private MongoCollection<Document> CrawlerCollection;
     private MongoCollection<Document> IndexerCollection;
     private MongoCollection<Document> SeedCollection;
 
-    public MongoDB(String Database) {
+    public MongoDB(String Database , int max) {
         try {
             // Create the DB server connection string
             ConnectionString connString = new ConnectionString("mongodb://localhost:27017/?readPreference=primary&appname=MongoDB%20Compass&ssl=false");
@@ -37,11 +37,7 @@ public class MongoDB {
             IndexerCollection = database.getCollection("Indexer");
             SeedCollection = database.getCollection("Seed");
 
-            if (CrawlerCollection.countDocuments() >= MAX_PAGES_COUNT) {
-                System.out.println("Recrawling from beginning");
-                CrawlerCollection.drop();
-                SeedCollection.drop();
-            }
+            MAX_PAGES_COUNT = max;
 
             checkSeed();
             System.out.println("Connected to DB");
@@ -56,8 +52,22 @@ public class MongoDB {
         return (int) SeedCollection.countDocuments();
     }
 
-    public void checkSeed() {
-        if ((int) SeedCollection.countDocuments() == 0 && CrawlerCollection.countDocuments() < MAX_PAGES_COUNT) {
+    public void checkSeed()
+    {
+
+        if (CrawlerCollection.countDocuments() >= MAX_PAGES_COUNT) //it means that the crawler was done before
+        {
+
+            /**
+             * @brief The Drop method delete all the documents and indexes
+             * it may be replaced by
+             * CrawlerCollection.deleteMany(new org.bson.Document());
+             * */
+            System.out.println("Crawling was completed before, crawl from beginning");
+            CrawlerCollection.drop();
+            SeedCollection.drop();
+        }
+        if((int)SeedCollection.countDocuments() == 0 && CrawlerCollection.countDocuments()<MAX_PAGES_COUNT) {
             try {
                 File file = new File("seed.txt");
                 Scanner myReader = new Scanner(file);

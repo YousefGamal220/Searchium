@@ -9,7 +9,6 @@ import org.jsoup.select.Elements;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.URI;
 import java.net.URL;
 
 public class WebCrawler implements Runnable {
@@ -41,13 +40,23 @@ public class WebCrawler implements Runnable {
         // while the number of crawled pages is less than the maximum
         while (DB.getPagesCount() < MAX_PAGES_COUNT) {
             String url = "";
-            if (DB.getSeedCount() > 0) {
-                url = DB.popSeed().getString("url");
+            org.bson.Document doc = DB.popSeed();
+            if (doc !=null)
+            {
+                    url = doc.getString("url");
 
-                System.out.println("Crawler : " + Thread.currentThread().getName() + " will process page : " + url);
-
-                if (checkRobots(url)) {
-                    processPage(url);
+                    if (true/*checkRobots(url)*/) {
+                        processPage(url);
+                    }
+            }
+            else {
+                try {
+                    synchronized (this) {
+                        this.wait();
+                    }
+                }
+                catch (InterruptedException e) {
+                    e.fillInStackTrace();
                 }
             }
         }
@@ -105,6 +114,7 @@ public class WebCrawler implements Runnable {
         try {
             // Get the HTML document
             Document doc = Jsoup.connect(URL).ignoreContentType(true).get().clone(); // It may throw an IOException
+            System.out.println("Crawler : " + Thread.currentThread().getName() + " will process page : " + URL);
 
             // if the number of crawled pages is less than the maximum
             if (DB.getPagesCount() < MAX_PAGES_COUNT) {
@@ -125,7 +135,6 @@ public class WebCrawler implements Runnable {
 
                 for (Element link : questions) {
                     if (link.attr("abs:href").contains("http")) {
-
                         // Check if the URL ends with a # to exclude it from the URL
                         String link_url = link.attr("abs:href");
                         if (link_url.endsWith("#")) {
@@ -141,14 +150,20 @@ public class WebCrawler implements Runnable {
                             System.out.println(Thread.currentThread().getName() + ": " + link_url + " --> [DUPLICATED] and will not enter the Seed");
                         } else {
                             DB.insertSeed(link_url);
+                            synchronized (this) {
+                                this.notifyAll();
+                            }
                         }
                     }
                 }
-            }
-        } catch (IOException ignored) { // We ignored the catch block as we doesn't want it to do anything with exception
-        }
+               }
 
-        System.out.println(Thread.currentThread().getName() + ": " + "finished crawling :" + URL);
+                System.out.println(Thread.currentThread().getName() + ": " + "finished crawling :" +URL);
+
+        } catch (IOException e) {
+            // We ignored the catch block as we doesn't want it to do anything with exception
+            e.fillInStackTrace();
+        }
 
     }
 }
