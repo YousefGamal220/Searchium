@@ -17,11 +17,11 @@ import java.util.Scanner;
 public class MongoDB {
 
     public static int MAX_PAGES_COUNT;
+    int total_indexed_pages = 0;
     MongoCollection<Document> CrawlerCollection;
     MongoCollection<Document> IndexedPages;
     MongoCollection<Document> wordsCollection;
     MongoCollection<Document> SeedCollection;
-
 
     public MongoDB(String Database, int max) {
         try {
@@ -202,6 +202,7 @@ public class MongoDB {
             Document d = new Document();
             d.put("url", url);
             d.put("counts_in", 1);
+            d.put("tf", 0.0f);
             array.add(d);
 
             BasicDBObject newDocument = new BasicDBObject();
@@ -228,6 +229,32 @@ public class MongoDB {
         BasicDBObject updateObject = new BasicDBObject();
         updateObject.put("$set", newDocument); // (3)
 
-        IndexedPages.updateOne(query, updateObject); // (4
+        IndexedPages.updateOne(query, updateObject); // (4)
+
+        total_indexed_pages++;
+    }
+
+
+    public void calcTF(String word, String url, int t_n) {
+        Document d = wordsCollection.find(new org.bson.Document("word", word).append("pages.url", url))
+                .iterator().next();
+
+        int t = 0;
+        for (Document page : d.getList("pages", Document.class)) {
+            if (page.getString("url").equals(url))
+                t = page.getInteger("counts_in");
+        }
+
+        wordsCollection.updateOne(new org.bson.Document("word", word).append("pages.url", url),
+                new org.bson.Document("$set", new org.bson.Document("pages.$.TF", (float) t / t_n)));
+
+    }
+
+    public void calcIDF() {
+        for (Document wordDoc : wordsCollection.find(new Document())) {
+            int t = wordDoc.getList("pages", Document.class).size();
+            wordsCollection.updateOne(new Document("word", wordDoc.getString("word")),
+                    new Document("$set", new Document("IDF", Math.log((float) total_indexed_pages / t))));
+        }
     }
 }

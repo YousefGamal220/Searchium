@@ -128,7 +128,7 @@ public class WebCrawler implements Runnable {
                     counter++;
                 }
 
-                DB.insertPage(counter, URL, doc.html());
+                DB.insertPage(counter, URL, doc.text());
 
                 if (DB.getSeedCount() + DB.getPagesCount() >= MAX_PAGES_COUNT) return;
 
