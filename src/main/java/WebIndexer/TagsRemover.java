@@ -1,5 +1,7 @@
 package WebIndexer;
 
+import org.apache.commons.lang3.StringUtils;
+
 public class TagsRemover {
 
     /**
@@ -17,6 +19,9 @@ public class TagsRemover {
          * Output: "Welcome to Searchium"
          */
 
-        return page.replaceAll("<[^>]*>", "");
+        page = page.replace("\n", "").replace("\r", "").replaceAll("<[^>]*>", "");
+        page = StringUtils.normalizeSpace(page);
+
+        return page;
     }
 }
