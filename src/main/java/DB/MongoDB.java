@@ -16,10 +16,11 @@ public class MongoDB {
     MongoCollection<Document> IndexerCollection;
     MongoCollection<Document> SeedCollection;
 
-    public static final int MAX_PAGES_COUNT = 500;
+    public static int MAX_PAGES_COUNT;
 
-    public MongoDB(String Database) {
+    public MongoDB(String Database , int max) {
         try {
+
             ConnectionString connString = new ConnectionString("mongodb://localhost:27017/?readPreference=primary&appname=MongoDB%20Compass&ssl=false");
             MongoClientSettings settings = MongoClientSettings.builder()
                     .applyConnectionString(connString)
@@ -30,12 +31,9 @@ public class MongoDB {
             CrawlerCollection = database.getCollection("Crawler");
             IndexerCollection = database.getCollection("Indexer");
             SeedCollection = database.getCollection("Seed");
-            if (CrawlerCollection.countDocuments() >= MAX_PAGES_COUNT)
-            {
-                System.out.println("Recrawling from begining");
-                CrawlerCollection.drop();
-                SeedCollection.drop();
-            }
+
+            MAX_PAGES_COUNT = max;
+
             checkSeed();
             System.out.println("Connected to DB");
 
@@ -51,6 +49,19 @@ public class MongoDB {
 
     public void checkSeed()
     {
+
+        if (CrawlerCollection.countDocuments() >= MAX_PAGES_COUNT) //it means that the crawler was done before
+        {
+
+            /**
+             * @brief The Drop method delete all the documents and indexes
+             * it may be replaced by
+             * CrawlerCollection.deleteMany(new org.bson.Document());
+             * */
+            System.out.println("Crawling was completed before, crawl from beginning");
+            CrawlerCollection.drop();
+            SeedCollection.drop();
+        }
         if((int)SeedCollection.countDocuments() == 0 && CrawlerCollection.countDocuments()<MAX_PAGES_COUNT) {
             try {
                 File file = new File("seed.txt");

@@ -44,13 +44,23 @@ public class WebCrawler implements Runnable {
 
             // if the URLs queue is not empty then process the first URL in it
             String url = "";
-            if (DB.getSeedCount() > 0)
-            {       url = DB.popSeed().getString("url");
+            org.bson.Document doc = DB.popSeed();
+            if (doc !=null)
+            {
+                    url = doc.getString("url");
 
-            System.out.println("Crawler : " + Thread.currentThread().getName() + " will process page : " + url);
-
-            if (checkRobots(url)) {
-                processPage(url);
+                    if (true/*checkRobots(url)*/) {
+                        processPage(url);
+                    }
+            }
+            else {
+                try {
+                    synchronized (this) {
+                        this.wait();
+                    }
+                }
+                catch (InterruptedException e) {
+                    e.fillInStackTrace();
                 }
             }
         }
@@ -65,7 +75,7 @@ public class WebCrawler implements Runnable {
             URI uri = new URI(link);
             String robot = "https://" + uri.getHost();
             robot += "/robots.txt";
-            System.out.println(robot);
+            //System.out.println(robot);
             BufferedReader in = new BufferedReader(new InputStreamReader(new URL(robot).openStream()));
             String line = null;
             while((line = in.readLine()) != null) {
@@ -103,6 +113,7 @@ public class WebCrawler implements Runnable {
         try {
             // Get the HTML document
             Document doc = Jsoup.connect(URL).ignoreContentType(true).get().clone(); // It may throw an IOException
+            System.out.println("Crawler : " + Thread.currentThread().getName() + " will process page : " + URL);
 
             // if the number of crawled pages is less than the maximum
             if (DB.getPagesCount() < MAX_PAGES_COUNT) {
@@ -110,8 +121,7 @@ public class WebCrawler implements Runnable {
                  * This indicates a problem as the doc used by the MongoDB class is bson
                  * and the one used here is jsoup and it can't be implicitly converted
                  */
-                synchronized (this)
-                {
+                synchronized (this) {
                     counter++;
                 }
 
@@ -119,13 +129,13 @@ public class WebCrawler implements Runnable {
 
                 // Get all the links in the page and add them to the end of the queue
 
-                if(DB.getSeedCount()+DB.getPagesCount() >= MAX_PAGES_COUNT) return;
+                if (DB.getSeedCount() + DB.getPagesCount() < MAX_PAGES_COUNT){
 
                 Elements questions = doc.select("a[href]");
                 for (Element link : questions) {
                     if (link.attr("abs:href").contains("http")) {
                         // Check if the given URL is already in database
-                        String link_url =link.attr("abs:href") ;
+                        String link_url = link.attr("abs:href");
                         if (link_url.endsWith("#")) {
                             link_url = link_url.substring(0, link_url.length() - 1);
                         }
@@ -135,22 +145,26 @@ public class WebCrawler implements Runnable {
                             link_url = link_url.substring(0, link_url.length() - 1);
                         }
 
-                        if (DB.getpage(link_url).iterator().hasNext() || DB.getSeed(link_url).iterator().hasNext() ) {
+                        if (DB.getpage(link_url).iterator().hasNext() || DB.getSeed(link_url).iterator().hasNext()) {
                             System.out.println(Thread.currentThread().getName() + ": " + link_url + " --> [DUPLICATED] and will not enter the Seed");
+                        } else {
+                            DB.insertSeed(link_url);
+                            synchronized (this) {
+                                this.notifyAll();
+                            }
                         }
-                        else {
-                                DB.insertSeed(link_url);
-                        }
-
-
-
                     }
                 }
+               }
+
+                System.out.println(Thread.currentThread().getName() + ": " + "finished crawling :" +URL);
+
             }
-        } catch (IOException ignored) { // We ignored the catch block as we doesn't want it to do anything with exception
+        } catch (IOException e) {
+            // We ignored the catch block as we doesn't want it to do anything with exception
+            e.fillInStackTrace();
         }
 
-        System.out.println(Thread.currentThread().getName() + ": " + "finished crawling :" +URL);
 
     }
 }
