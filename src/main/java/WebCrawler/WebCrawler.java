@@ -39,24 +39,19 @@ public class WebCrawler implements Runnable {
 
         // while the number of crawled pages is less than the maximum
         while (DB.getPagesCount() < MAX_PAGES_COUNT) {
-            String url = "";
             org.bson.Document doc = DB.popSeed();
-            if (doc !=null)
-            {
-                    url = doc.getString("url");
 
-                    if (true/*checkRobots(url)*/) {
-                        processPage(url);
-                    }
-            }
-            else {
+            // if there is a link to process
+            if (doc != null) {
+                String url = doc.getString("url");
+                processPage(url);
+            } else { // else let the thread wait until there is an available link
                 try {
                     synchronized (this) {
                         this.wait();
                     }
-                }
-                catch (InterruptedException e) {
-                    e.fillInStackTrace();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
             }
         }
@@ -65,7 +60,8 @@ public class WebCrawler implements Runnable {
     }
 
     public boolean checkRobots(String link) {
-        System.out.println(link);
+        boolean notBlocked = true;
+
         try {
             // Create a URL instance from the link
             URL url = new URL(link);
@@ -73,6 +69,7 @@ public class WebCrawler implements Runnable {
             // Build the proper URL to the robots.txt file
             String origin = url.getProtocol() + "://" + url.getHost();
             String robot = origin + "/robots.txt";
+            System.out.println(link);
             System.out.println(robot);
 
             // Create a BufferedReader to read the robots.txt file
@@ -88,18 +85,23 @@ public class WebCrawler implements Runnable {
 
             while ((line = in.readLine()) != null) {
                 if (line.startsWith("Disallow: ") && link.startsWith(origin + line.substring(10))) {
-                    System.out.println("Link Blocked");
-                    return false;
+                    System.out.println(link + " --> [Blocked]");
+                    notBlocked = false;
+                }
+            }
+
+            while ((line = in.readLine()) != null) {
+                if (line.startsWith("Allow: ") && link.startsWith(origin + line.substring(8))) {
+                    notBlocked = true;
                 }
             }
 
         } catch (Exception e) {
             System.out.println("Error in parsing robots.txt");
-            System.out.println(e);
             return false;
         }
 
-        return true;
+        return notBlocked;
     }
 
     /**
@@ -126,7 +128,7 @@ public class WebCrawler implements Runnable {
                     counter++;
                 }
 
-                DB.insertpage(counter, URL, doc.html());
+                DB.insertPage(counter, URL, doc.html());
 
                 if (DB.getSeedCount() + DB.getPagesCount() >= MAX_PAGES_COUNT) return;
 
@@ -146,9 +148,9 @@ public class WebCrawler implements Runnable {
                             link_url = link_url.substring(0, link_url.length() - 1);
                         }
 
-                        if (DB.getpage(link_url).iterator().hasNext() || DB.getSeed(link_url).iterator().hasNext()) {
-                            System.out.println(Thread.currentThread().getName() + ": " + link_url + " --> [DUPLICATED] and will not enter the Seed");
-                        } else {
+                        if (DB.getPage(link_url).iterator().hasNext() || DB.getSeed(link_url).iterator().hasNext()) {
+                            // System.out.println(Thread.currentThread().getName() + ": " + link_url + " --> [DUPLICATED]");
+                        } else if (checkRobots(link_url)) {
                             DB.insertSeed(link_url);
                             synchronized (this) {
                                 this.notifyAll();
@@ -156,14 +158,13 @@ public class WebCrawler implements Runnable {
                         }
                     }
                 }
-               }
+            }
 
-                System.out.println(Thread.currentThread().getName() + ": " + "finished crawling :" +URL);
+            System.out.println(Thread.currentThread().getName() + ": " + "finished crawling :" + URL);
 
         } catch (IOException e) {
             // We ignored the catch block as we doesn't want it to do anything with exception
             e.fillInStackTrace();
         }
-
     }
 }

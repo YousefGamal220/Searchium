@@ -16,16 +16,14 @@ import java.util.Scanner;
 
 public class MongoDB {
 
-    MongoClient mongoClient;
-    MongoDatabase database;
+    public static int MAX_PAGES_COUNT;
     MongoCollection<Document> CrawlerCollection;
     MongoCollection<Document> IndexedPages;
     MongoCollection<Document> wordsCollection;
     MongoCollection<Document> SeedCollection;
-    public static int MAX_PAGES_COUNT;
 
 
-    public MongoDB(String Database , int max) {
+    public MongoDB(String Database, int max) {
         try {
             // Create the DB server connection string
             ConnectionString connString = new ConnectionString("mongodb://localhost:27017/?readPreference=primary&appname=MongoDB%20Compass&ssl=false");
@@ -43,9 +41,9 @@ public class MongoDB {
             MongoDatabase database = mongoClient.getDatabase(Database);
 
             // Create the needed collections
-            CrawlerCollection = database.getCollection("Crawler");
+            CrawlerCollection = database.getCollection("CrawledPages");
             IndexedPages = database.getCollection("IndexedPages");
-            wordsCollection = database.getCollection("words");
+            wordsCollection = database.getCollection("Words");
             SeedCollection = database.getCollection("Seed");
 
             MAX_PAGES_COUNT = max;
@@ -55,7 +53,7 @@ public class MongoDB {
 
         } catch (Exception e) {
             System.out.println("Not connected to DB");
-            System.out.println(e);
+            e.printStackTrace();
         }
     }
 
@@ -63,22 +61,15 @@ public class MongoDB {
         return (int) SeedCollection.countDocuments();
     }
 
-    public void checkSeed()
-    {
+    public void checkSeed() {
 
-        if (CrawlerCollection.countDocuments() >= MAX_PAGES_COUNT) //it means that the crawler was done before
+        if (CrawlerCollection.countDocuments() >= MAX_PAGES_COUNT) // means that the crawler was done before
         {
-
-            /**
-             * @brief The Drop method delete all the documents and indexes
-             * it may be replaced by
-             * CrawlerCollection.deleteMany(new org.bson.Document());
-             * */
             System.out.println("Crawling was completed before, crawl from beginning");
             CrawlerCollection.drop();
             SeedCollection.drop();
         }
-        if((int)SeedCollection.countDocuments() == 0 && CrawlerCollection.countDocuments()<MAX_PAGES_COUNT) {
+        if ((int) SeedCollection.countDocuments() == 0 && CrawlerCollection.countDocuments() < MAX_PAGES_COUNT) {
             try {
                 File file = new File("seed.txt");
                 Scanner myReader = new Scanner(file);
@@ -88,18 +79,12 @@ public class MongoDB {
                 }
                 myReader.close();
             } catch (FileNotFoundException e) {
-                System.out.println("No Seed file available, Use primitive seeds ");
-                org.bson.Document seed = new org.bson.Document("url", "http://www.mathematinu.com/");
-                SeedCollection.insertOne(seed);
-                seed = new org.bson.Document("url", "http://eng.cu.edu.eg/ar/");
-                SeedCollection.insertOne(seed);
-                seed = new org.bson.Document("url", "https://stackoverflow.com/");
-                SeedCollection.insertOne(seed);
+                System.out.println("Error in reading seed.txt");
+                e.printStackTrace();
             }
         } else {
             System.out.println("This crawler was interrupted before, resuming from where it stopped");
         }
-
     }
 
     public void insertSeed(String url) {
@@ -115,18 +100,17 @@ public class MongoDB {
         return SeedCollection.find(new org.bson.Document("url", url));
     }
 
-    public void insertpage(int id, String url, String doc) {
+    public void insertPage(int id, String url, String doc) {
         org.bson.Document website = new org.bson.Document("id", id).append("url", url).append("content", doc);
         CrawlerCollection.insertOne(website);
     }
 
-    public FindIterable<Document> getpage(int id) {
+    public FindIterable<Document> getPage(int id) {
         return CrawlerCollection.find(new org.bson.Document("id", id));
     }
 
-    public FindIterable<Document> getpage(String url) {
+    public FindIterable<Document> getPage(String url) {
         return CrawlerCollection.find(new org.bson.Document("url", url));
-        //This will return the whole document with the url & content
     }
 
     public int getPagesCount() {
@@ -135,26 +119,22 @@ public class MongoDB {
 
     public FindIterable<Document> getAllPages() {
         return CrawlerCollection.find(new org.bson.Document());
-        //This will return the whole document with the url & content
     }
 
     // Indexer Interface
-    public void insertPageInd(String url, int count)
-    {
+    public void insertPageInd(String url, int count) {
         org.bson.Document website = new org.bson.Document("url", url).append("count", count).append("finished", false);
         IndexedPages.insertOne(website);
     }
 
-    public FindIterable<Document> findPageInd(String url)
-    {
+    public FindIterable<Document> findPageInd(String url) {
         return IndexedPages.find(new org.bson.Document("url", url));
     }
 
-    public void insertWordInd(String word, String url)
-    {
+    public void insertWordInd(String word, String url) {
         org.bson.Document wordDoc = new org.bson.Document("word", word);
 
-        ArrayList<DBObject> array = new ArrayList<DBObject>();
+        ArrayList<DBObject> array = new ArrayList<>();
         BasicDBObject document = new BasicDBObject();
 
         document.put("url", url);
@@ -164,46 +144,35 @@ public class MongoDB {
         wordsCollection.insertOne(wordDoc);
     }
 
-    public FindIterable<Document> getWordInd(String word)
-    {
+    public FindIterable<Document> getWordInd(String word) {
         return wordsCollection.find(new org.bson.Document("word", word));
     }
 
-    public List<String> getUrlsForWordInd(String word)
-    {
+    public List<String> getUrlsForWordInd(String word) {
         Iterator<Document> itr = wordsCollection.find(new org.bson.Document("word", word)).iterator();
-        List<String>urls = new ArrayList<String>();
-        if (itr.hasNext())
-        {
-            for (Document page : itr.next().getList("pages", Document.class))
-            {
+        List<String> urls = new ArrayList<>();
+        if (itr.hasNext()) {
+            for (Document page : itr.next().getList("pages", Document.class)) {
                 urls.add(page.getString("url"));
             }
-
         }
         return urls;
     }
 
-    public void increaseWordCount(String word, String url)
-    {
+    public void increaseWordCount(String word, String url) {
         int old_val = -1;
 
         BasicDBObject query = new BasicDBObject();
         query.put("word", word);
 
         Iterator<Document> wordDocItr = wordsCollection.find(query).iterator();
-        if (wordDocItr.hasNext())
-        {
-            ArrayList<Document> array = new ArrayList<Document>();
+        if (wordDocItr.hasNext()) {
+            ArrayList<Document> array = new ArrayList<>();
 
-            for (Document page : wordDocItr.next().getList("pages", Document.class))
-            {
-                if (!page.getString("url").equals(url))
-                {
+            for (Document page : wordDocItr.next().getList("pages", Document.class)) {
+                if (!page.getString("url").equals(url)) {
                     array.add(page);
-                }
-                else
-                {
+                } else {
                     Document d = new Document();
                     d.put("url", url);
                     d.put("counts_in", page.getInteger("counts_in") + 1);
@@ -221,20 +190,14 @@ public class MongoDB {
         }
     }
 
-    public void insertNewUrl(String word, String url)
-    {
+    public void insertNewUrl(String word, String url) {
         BasicDBObject query = new BasicDBObject();
         query.put("word", word);
 
         Iterator<Document> wordDocItr = wordsCollection.find(query).iterator();
-        if (wordDocItr.hasNext())
-        {
-            ArrayList<Document> array = new ArrayList<Document>();
+        if (wordDocItr.hasNext()) {
 
-            for (Document page : wordDocItr.next().getList("pages", Document.class))
-            {
-                array.add(page);
-            }
+            ArrayList<Document> array = new ArrayList<>(wordDocItr.next().getList("pages", Document.class));
 
             Document d = new Document();
             d.put("url", url);
@@ -249,16 +212,13 @@ public class MongoDB {
 
             wordsCollection.updateOne(query, updateObject); // (4)
         }
-
     }
 
-    public boolean isIndexed(String url)
-    {
+    public boolean isIndexed(String url) {
         return IndexedPages.find(new org.bson.Document("url", url)).iterator().next().getBoolean("finished");
     }
 
-    public void finishPageIndex(String url)
-    {
+    public void finishPageIndex(String url) {
         BasicDBObject query = new BasicDBObject();
         query.put("url", url); // (1)
 

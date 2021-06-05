@@ -1,15 +1,11 @@
 package WebIndexer;
 
+import DB.MongoDB;
+import org.bson.Document;
+
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
-import DB.MongoDB;
-import com.mongodb.client.FindIterable;
-import org.bson.Document;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
-
 
 
 /**
@@ -31,43 +27,35 @@ public class WebIndexerMain {
 
     }
 
-    public  void runIndexer(String page, String page_url, List<String> stop_words) throws IOException {
+    public void runIndexer(String page, String page_url, List<String> stop_words) throws IOException {
         Iterator<Document> pageItr = DB.findPageInd(page_url).iterator();
         if (pageItr.hasNext() && DB.isIndexed(page_url))
             return;
 
-        String page_content =  TagsRemover.removeTags(page);
+        String page_content = TagsRemover.removeTags(page);
         page_content = page_content.replaceAll("[^a-zA-Z]", " ");
         List<String> words = Tokenizer.tokenizeWord(page_content);
         StopWordsRemover.removeStopWord(words, stop_words);
 
-        if (!pageItr.hasNext())
-        {
+        if (!pageItr.hasNext()) {
             DB.insertPageInd(page_url, words.size());
             System.out.println("new page added");
         }
 
 
-       for (String word : words)
-        {
-            if (word.length() != 0)
-            {
+        for (String word : words) {
+            if (word.length() != 0) {
                 Stemmer s = new Stemmer(word);
                 String stemed_word = s.toString();
 
                 //System.out.println(word);
                 Iterator<Document> wordItr = DB.getWordInd(stemed_word).iterator();
-                if (!wordItr.hasNext())
-                {
+                if (!wordItr.hasNext()) {
                     DB.insertWordInd(stemed_word, page_url);
-                }
-                else
-                {
+                } else {
                     boolean found = false;
-                    for (String url : DB.getUrlsForWordInd(stemed_word))
-                    {
-                        if (page_url.equals(url))
-                        {
+                    for (String url : DB.getUrlsForWordInd(stemed_word)) {
+                        if (page_url.equals(url)) {
                             found = true;
                             DB.increaseWordCount(stemed_word, page_url);
                             break;

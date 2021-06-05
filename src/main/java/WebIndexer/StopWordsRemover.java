@@ -3,7 +3,6 @@ package WebIndexer;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.List;
 
 public class StopWordsRemover {
@@ -25,7 +24,7 @@ public class StopWordsRemover {
     /**
      * Remove stopping words from a page.
      *
-     * @param page in String format.
+     * @param page   in String format.
      * @param corpus stopping words to be removed.
      * @return void.
      */
@@ -37,7 +36,7 @@ public class StopWordsRemover {
          * Example: Given page "["Welcome", "to", "Searchium"]" as input
          * Output: "["Welcome", "Searchium"].
          */
-         page.removeAll(corpus);
+        page.removeAll(corpus);
     }
 
 }

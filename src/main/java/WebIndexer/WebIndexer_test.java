@@ -11,7 +11,7 @@ public class WebIndexer_test {
         result.add("Welcome");
         result.add("to");
         result.add("Searchium");
-        assert(Tokenizer.tokenizeWord(sentence) == result);
+        assert (Tokenizer.tokenizeWord(sentence) == result);
         System.out.println("Passed Testcase 1, tokenize String");
     }
 

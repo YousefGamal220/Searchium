@@ -2,12 +2,9 @@ import DB.MongoDB;
 import WebCrawler.WebCrawler;
 import WebIndexer.StopWordsRemover;
 import WebIndexer.WebIndexerMain;
-import com.mongodb.client.FindIterable;
 import org.bson.Document;
 
-import java.util.ArrayList;
 import java.util.Iterator;
-
 import java.util.List;
 import java.util.Scanner;
 
@@ -38,7 +35,7 @@ public class App {
         // Create the crawler and make the threads start crawling
         WebCrawler Crawler = new WebCrawler(DB);
 
-
+        // Create N threads which will crawl the URLs
         Thread[] crawlers = new Thread[threadsNum];
         for (int i = 0; i < threadsNum; i++) {
             crawlers[i] = new Thread(Crawler);
@@ -51,14 +48,12 @@ public class App {
             crawler.join();
         }
 
-
         WebIndexerMain webIndexerMain = new WebIndexerMain(DB); // Creating Instance from the class
         List<String> stop_words = StopWordsRemover.buildStopWordsCorpus("stopping_words.txt");
 
         Iterator<Document> CrawlerCollectionItr = DB.getAllPages().iterator();
         int i = 1;
         while (CrawlerCollectionItr.hasNext()) {
-
             Document d = CrawlerCollectionItr.next();
             String page = d.getString("content");
             String url = d.getString("url");
@@ -66,8 +61,6 @@ public class App {
             System.out.printf("index page: %d url:%s \n", i, url);
             webIndexerMain.runIndexer(page, url, stop_words);
             i++;
-
         }
     }
-
 }
