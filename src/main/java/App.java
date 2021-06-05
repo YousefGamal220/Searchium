@@ -2,6 +2,7 @@ import DB.MongoDB;
 import WebCrawler.WebCrawler;
 import WebIndexer.StopWordsRemover;
 import WebIndexer.WebIndexerMain;
+
 import org.bson.Document;
 
 import java.util.Iterator;
@@ -48,10 +49,16 @@ public class App {
             crawler.join();
         }
 
+        // Get the stopping words from the file
         List<String> stop_words = StopWordsRemover.buildStopWordsCorpus("stopping_words.txt");
-        WebIndexerMain webIndexerMain = new WebIndexerMain(DB, stop_words); // Creating Instance from the class
 
+        // Create an instance from the Indexer
+        WebIndexerMain webIndexerMain = new WebIndexerMain(DB, stop_words);
+
+        // Retrieve all the crawled pages from the DB
         Iterator<Document> CrawlerCollectionItr = DB.getAllPages().iterator();
+
+        // Loop through the crawled pages and index them
         int i = 1;
         while (CrawlerCollectionItr.hasNext()) {
             Document d = CrawlerCollectionItr.next();
@@ -63,7 +70,7 @@ public class App {
             i++;
         }
 
+        // Save the indexed words in the DB
         webIndexerMain.updateIndexerDB();
-
     }
 }

@@ -69,8 +69,6 @@ public class WebCrawler implements Runnable {
             // Build the proper URL to the robots.txt file
             String origin = url.getProtocol() + "://" + url.getHost();
             String robot = origin + "/robots.txt";
-//            System.out.println(link);
-//            System.out.println(robot);
 
             // Create a BufferedReader to read the robots.txt file
             BufferedReader in = new BufferedReader(new InputStreamReader(new URL(robot).openStream()));
@@ -147,7 +145,7 @@ public class WebCrawler implements Runnable {
                         }
 
                         if (DB.getPage(link_url).iterator().hasNext() || DB.getSeed(link_url).iterator().hasNext()) {
-                             System.out.println(Thread.currentThread().getName() + ": " + link_url + " --> [DUPLICATED]");
+                            System.out.println(Thread.currentThread().getName() + ": " + link_url + " --> [DUPLICATED]");
                         } else if (checkRobots(link_url)) {
                             DB.insertSeed(link_url);
                             synchronized (this) {

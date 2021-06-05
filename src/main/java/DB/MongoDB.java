@@ -1,23 +1,18 @@
 package DB;
 
-import com.mongodb.BasicDBObject;
 import com.mongodb.ConnectionString;
-import com.mongodb.DBObject;
 import com.mongodb.MongoClientSettings;
 import com.mongodb.client.*;
 import org.bson.Document;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Scanner;
 
 public class MongoDB {
 
     public static int MAX_PAGES_COUNT;
-    int total_indexed_pages = 0;
     MongoCollection<Document> CrawlerCollection;
     MongoCollection<Document> IndexedPages;
     MongoCollection<Document> wordsCollection;
@@ -105,10 +100,6 @@ public class MongoDB {
         CrawlerCollection.insertOne(website);
     }
 
-    public FindIterable<Document> getPage(int id) {
-        return CrawlerCollection.find(new org.bson.Document("id", id));
-    }
-
     public FindIterable<Document> getPage(String url) {
         return CrawlerCollection.find(new org.bson.Document("url", url));
     }
@@ -122,12 +113,10 @@ public class MongoDB {
     }
 
     // Indexer Interface
-    public void insertWord(String word, List<Document>pages)
-    {
+    public void insertWord(String word, List<Document> pages) {
         org.bson.Document wordDoc = new org.bson.Document("word", word)
-                .append("IDF", Math.log(CrawlerCollection.countDocuments()/(float) pages.size()))
+                .append("IDF", Math.log(CrawlerCollection.countDocuments() / (float) pages.size()))
                 .append("pages", pages);
         wordsCollection.insertOne(wordDoc);
     }
-
 }
