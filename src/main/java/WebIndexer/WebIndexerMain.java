@@ -21,15 +21,15 @@ import java.util.List;
 public class WebIndexerMain {
 
     MongoDB DB;
-    List<String>stop_words;
+    List<String> stop_words;
 
-    public WebIndexerMain(MongoDB DB,List<String> stop_words) {
+    public WebIndexerMain(MongoDB DB, List<String> stop_words) {
         this.DB = DB;
-         this.stop_words = stop_words;
+        this.stop_words = stop_words;
 
     }
 
-    public  void runIndexer(String page, String page_url) throws IOException {
+    public void runIndexer(String page, String page_url) throws IOException {
         Iterator<Document> pageItr = DB.findPageInd(page_url).iterator();
         if (pageItr.hasNext() && DB.isIndexed(page_url))
             return;
@@ -38,16 +38,13 @@ public class WebIndexerMain {
         List<String> words = Tokenizer.tokenizeWord(page);
         StopWordsRemover.removeStopWord(words, this.stop_words);
         int count = words.size();
-        if (!pageItr.hasNext())
-        {
+        if (!pageItr.hasNext()) {
             DB.insertPageInd(page_url, count);
             System.out.println("new page added");
         }
 
-       for (String word : words)
-        {
-            if (word.length() != 0)
-            {
+        for (String word : words) {
+            if (word.length() != 0) {
                 Stemmer s = new Stemmer(word);
                 String stemmed_word = s.toString();
                 Iterator<Document> wordItr = DB.getWordInd(stemmed_word).iterator();
@@ -78,11 +75,7 @@ public class WebIndexerMain {
         DB.finishPageIndex(page_url);
     }
 
-    public void updateIDF()
-    {
-        DB.calcIDF();
+    public void updateIDF() {
+        DB.calacIDF();
     }
-
-
-
 }

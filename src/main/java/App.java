@@ -33,7 +33,7 @@ public class App {
         }
 
         // Create the crawler and make the threads start crawling
-       WebCrawler Crawler = new WebCrawler(DB);
+        WebCrawler Crawler = new WebCrawler(DB);
 
         // Create N threads which will crawl the URLs
         Thread[] crawlers = new Thread[threadsNum];
