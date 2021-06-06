@@ -1,38 +1,39 @@
 package WebIndexer;
 
+import DB.MongoDB;
+import org.bson.Document;
+
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.List;
 
-/**
- * WebIndexer Stages
- * 1- Tokenizer (Gamal) Done
- * 2- Remove Stopping Words [Optional: To make it Smarter] (Yahia) Done
- * 3- Remove HTML tags (Yahia) Done
- * 4- Stemming [Smart Stemmer] (Gamal) Done
- * 5- Indexing and TF-IDF (Yahia and Gamal)
- * 6- Integrating Module and Testing of simple Corpus (Yahia and Gamal)
- */
-
 public class WebIndexerMain {
-    public  void runIndexer(String page, List<String> stop_words) throws IOException {
+    public static void main(String[] args) throws IOException {
+        // Connect to the database
+        MongoDB DB = new MongoDB("Searchium");
 
-        String page_content =  TagsRemover.removeTags(page);
+        // Get the stopping words from the file
+        List<String> stop_words = StopWordsRemover.buildStopWordsCorpus("stopping_words.txt");
 
-        List<String> words = Tokenizer.tokenizeWord(page_content);
-        StopWordsRemover.removeStopWord(words, stop_words);
+        // Create an instance from the Indexer
+        WebIndexer webIndexerMain = new WebIndexer(DB, stop_words);
 
-       for (String word : words)
-        {
-            word = word.replaceAll("[^a-zA-Z0-9]", "");
-            Stemmer s = new Stemmer(word);
-            String stemed_word = s.toString();
+        // Retrieve all the crawled pages from the DB
+        Iterator<Document> CrawlerCollectionItr = DB.getAllPages().iterator();
 
-            System.out.print(word);
-            System.out.print("      ");
-            System.out.println(stemed_word);
+        // Loop through the crawled pages and index them
+        int i = 1;
+        while (CrawlerCollectionItr.hasNext()) {
+            Document d = CrawlerCollectionItr.next();
+            String page = d.getString("content");
+            String url = d.getString("url");
 
-
+            System.out.printf("index page: %d url:%s \n", i, url);
+            webIndexerMain.runIndexer(page, url);
+            i++;
         }
 
+        // Save the indexed words in the DB
+        webIndexerMain.updateIndexerDB();
     }
 }

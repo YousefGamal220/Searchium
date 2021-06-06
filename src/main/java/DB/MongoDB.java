@@ -7,114 +7,113 @@ import org.bson.Document;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.util.List;
 import java.util.Scanner;
 
 public class MongoDB {
-    MongoClient mongoClient;
-    MongoDatabase database;
-    MongoCollection<Document> CrawlerCollection;
-    MongoCollection<Document> IndexerCollection;
-    MongoCollection<Document> SeedCollection;
 
-    public static final int MAX_PAGES_COUNT = 500;
+    public static final int MAX_PAGES_COUNT = 5000;
+    MongoCollection<Document> CrawlerCollection;
+    MongoCollection<Document> IndexedPages;
+    MongoCollection<Document> wordsCollection;
+    MongoCollection<Document> SeedCollection;
 
     public MongoDB(String Database) {
         try {
+            // Create the DB server connection string
             ConnectionString connString = new ConnectionString("mongodb://localhost:27017/?readPreference=primary&appname=MongoDB%20Compass&ssl=false");
+
+            // Build the DB server settings
             MongoClientSettings settings = MongoClientSettings.builder()
                     .applyConnectionString(connString)
                     .retryWrites(true)
                     .build();
-            mongoClient = MongoClients.create(settings);
-            database = mongoClient.getDatabase(Database);
-            CrawlerCollection = database.getCollection("Crawler");
-            IndexerCollection = database.getCollection("Indexer");
+
+            // Connect to DB server
+            MongoClient mongoClient = MongoClients.create(settings);
+
+            // Create the DB
+            MongoDatabase database = mongoClient.getDatabase(Database);
+
+            // Create the needed collections
+            CrawlerCollection = database.getCollection("CrawledPages");
+            IndexedPages = database.getCollection("IndexedPages");
+            wordsCollection = database.getCollection("Words");
             SeedCollection = database.getCollection("Seed");
-            if (CrawlerCollection.countDocuments() >= MAX_PAGES_COUNT)
-            {
-                System.out.println("Recrawling from begining");
-                CrawlerCollection.drop();
-                SeedCollection.drop();
-            }
-            checkSeed();
+
             System.out.println("Connected to DB");
 
         } catch (Exception e) {
             System.out.println("Not connected to DB");
-            System.out.println(e);
+            e.printStackTrace();
         }
     }
 
-    public int getSeedCount(){
-        return (int)SeedCollection.countDocuments();
+    public int getSeedCount() {
+        return (int) SeedCollection.countDocuments();
     }
 
-    public void checkSeed()
-    {
-        if((int)SeedCollection.countDocuments() == 0 && CrawlerCollection.countDocuments()<MAX_PAGES_COUNT) {
+    public void checkSeed() {
+
+        if (CrawlerCollection.countDocuments() >= MAX_PAGES_COUNT) // means that the crawler was done before
+        {
+            System.out.println("Crawling was completed before, crawl from beginning");
+            CrawlerCollection.drop();
+            SeedCollection.drop();
+        }
+        if ((int) SeedCollection.countDocuments() == 0 && CrawlerCollection.countDocuments() < MAX_PAGES_COUNT) {
             try {
                 File file = new File("seed.txt");
                 Scanner myReader = new Scanner(file);
                 while (myReader.hasNextLine()) {
-                    String data = myReader.nextLine();
-                    org.bson.Document seed = new org.bson.Document("url", data);
-                    SeedCollection.insertOne(seed);
+                    org.bson.Document url = new org.bson.Document("url", myReader.nextLine());
+                    SeedCollection.insertOne(url);
                 }
                 myReader.close();
             } catch (FileNotFoundException e) {
-                System.out.println("No Seed file available, Use primitive seeds ");
-                org.bson.Document seed = new org.bson.Document("url", "http://www.mathematinu.com/");
-                SeedCollection.insertOne(seed);
-                seed = new org.bson.Document("url", "http://eng.cu.edu.eg/ar/");
-                SeedCollection.insertOne(seed);
-                seed = new org.bson.Document("url", "https://stackoverflow.com/");
-                SeedCollection.insertOne(seed);
-
+                System.out.println("Error in reading seed.txt");
+                e.printStackTrace();
             }
+        } else {
+            System.out.println("This crawler was interrupted before, resuming from where it stopped");
         }
-        else
-        {
-            System.out.println("This crawler was interrupted before, resume from where stopped");
-        }
-
     }
 
-    public void insertSeed(String url)
-    {
+    public void insertSeed(String url) {
         org.bson.Document seed = new org.bson.Document("url", url);
         SeedCollection.insertOne(seed);
     }
 
-    public Document popSeed ()
-    {
+    public Document popSeed() {
         return SeedCollection.findOneAndDelete(new org.bson.Document());
-        //This will delete all documents that has the field name "url" with value url
     }
-    public FindIterable<Document> getSeed(String url)
-    {
-        return SeedCollection.find(new org.bson.Document("url",url));
+
+    public FindIterable<Document> getSeed(String url) {
+        return SeedCollection.find(new org.bson.Document("url", url));
     }
-    public void insertpage(int id, String url, String doc) {
-        org.bson.Document website = new org.bson.Document("id", id).append("url", url).append("content", doc);
+
+    public void insertPage(String title, int id, String url, String doc) {
+        org.bson.Document website = new org.bson.Document("id", id).append("title", title).append("url", url).append("content", doc);
         CrawlerCollection.insertOne(website);
     }
 
-    public FindIterable<Document> getpage(int id) {
-        return CrawlerCollection.find(new org.bson.Document("id", id));
-        //This will return the whole document with the url & content
-    }
-
-    public FindIterable<Document> getpage(String url) {
+    public FindIterable<Document> getPage(String url) {
         return CrawlerCollection.find(new org.bson.Document("url", url));
-        //This will return the whole document with the url & content
     }
 
     public int getPagesCount() {
-        return (int)CrawlerCollection.countDocuments();
+        return (int) CrawlerCollection.countDocuments();
     }
 
     public FindIterable<Document> getAllPages() {
         return CrawlerCollection.find(new org.bson.Document());
-        //This will return the whole document with the url & content
+    }
+
+    // Indexer Interface
+    public void insertWord(String word, List<Document> pages) {
+        org.bson.Document wordDoc = new org.bson.Document("word", word)
+                .append("IDF", Math.log(CrawlerCollection.countDocuments() / (float) pages.size()))
+                .append("pages", pages);
+        wordsCollection.insertOne(wordDoc);
     }
 }
