@@ -4,59 +4,36 @@ import DB.MongoDB;
 import org.bson.Document;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 
 public class WebIndexerMain {
-    MongoDB DB;
-    List<String> stop_words;
-    HashMap<String, List<Document>> index;
+    public static void main(String[] args) throws IOException {
+        // Connect to the database
+        MongoDB DB = new MongoDB("Searchium");
 
-    public WebIndexerMain(MongoDB DB, List<String> stop_words) {
-        this.DB = DB;
-        this.stop_words = stop_words;
-        index = new HashMap<String, List<Document>>();
-    }
+        // Get the stopping words from the file
+        List<String> stop_words = StopWordsRemover.buildStopWordsCorpus("stopping_words.txt");
 
-    public void runIndexer(String page, String page_url) throws IOException {
+        // Create an instance from the Indexer
+        WebIndexer webIndexerMain = new WebIndexer(DB, stop_words);
 
-        HashMap<String, Integer> words_count = new HashMap<String, Integer>();
-        page = page.replaceAll("[^a-zA-Z]", " ");
-        List<String> words = Tokenizer.tokenizeWord(page);
-        StopWordsRemover.removeStopWord(words, this.stop_words);
-        int count = words.size();
+        // Retrieve all the crawled pages from the DB
+        Iterator<Document> CrawlerCollectionItr = DB.getAllPages().iterator();
 
-        for (String word : words) {
-            if (word.length() != 0) {
-                Stemmer s = new Stemmer(word);
-                String stemmed_word = s.toString();
+        // Loop through the crawled pages and index them
+        int i = 1;
+        while (CrawlerCollectionItr.hasNext()) {
+            Document d = CrawlerCollectionItr.next();
+            String page = d.getString("content");
+            String url = d.getString("url");
 
-                if (words_count.containsKey(stemmed_word)) {
-                    words_count.put(word, words_count.get(stemmed_word) + 1);
-                } else {
-                    words_count.put(word, 1);
-                }
-            }
+            System.out.printf("index page: %d url:%s \n", i, url);
+            webIndexerMain.runIndexer(page, url);
+            i++;
         }
 
-        for (String stemmed_word : words_count.keySet()) {
-            Document d = new Document();
-            d.append("url", page_url);
-            d.append("tf", words_count.get(stemmed_word) / (float) count);
-            if (index.containsKey(stemmed_word)) {
-                index.get(stemmed_word).add(d);
-            } else {
-                List<Document> arr = new ArrayList<>();
-                arr.add(d);
-                index.put(stemmed_word, arr);
-            }
-        }
-    }
-
-    public void updateIndexerDB() {
-        for (String word : index.keySet()) {
-            DB.insertWord(word, index.get(word));
-        }
+        // Save the indexed words in the DB
+        webIndexerMain.updateIndexerDB();
     }
 }

@@ -14,7 +14,7 @@ public class StopWordsRemover {
      * @return List of all stopping words.
      */
     public static List<String> buildStopWordsCorpus(String corpus_path) throws IOException {
-        /**
+        /*
          * This Function remove creates a list of stopping words
          * from a given file path.
          */
@@ -26,10 +26,9 @@ public class StopWordsRemover {
      *
      * @param page   in String format.
      * @param corpus stopping words to be removed.
-     * @return void.
      */
     public static void removeStopWord(List<String> page, List<String> corpus) {
-        /**
+        /*
          * This Function remove stopping words from a page ArrayList<String>
          * it takes ArrayList<String> Parameter page
          * And transform the list
@@ -38,5 +37,4 @@ public class StopWordsRemover {
          */
         page.removeAll(corpus);
     }
-
 }

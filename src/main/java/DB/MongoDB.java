@@ -12,13 +12,13 @@ import java.util.Scanner;
 
 public class MongoDB {
 
-    public static int MAX_PAGES_COUNT;
+    public static final int MAX_PAGES_COUNT = 5000;
     MongoCollection<Document> CrawlerCollection;
     MongoCollection<Document> IndexedPages;
     MongoCollection<Document> wordsCollection;
     MongoCollection<Document> SeedCollection;
 
-    public MongoDB(String Database, int max) {
+    public MongoDB(String Database) {
         try {
             // Create the DB server connection string
             ConnectionString connString = new ConnectionString("mongodb://localhost:27017/?readPreference=primary&appname=MongoDB%20Compass&ssl=false");
@@ -41,9 +41,6 @@ public class MongoDB {
             wordsCollection = database.getCollection("Words");
             SeedCollection = database.getCollection("Seed");
 
-            MAX_PAGES_COUNT = max;
-
-            checkSeed();
             System.out.println("Connected to DB");
 
         } catch (Exception e) {
@@ -95,8 +92,8 @@ public class MongoDB {
         return SeedCollection.find(new org.bson.Document("url", url));
     }
 
-    public void insertPage(int id, String url, String doc) {
-        org.bson.Document website = new org.bson.Document("id", id).append("url", url).append("content", doc);
+    public void insertPage(String title, int id, String url, String doc) {
+        org.bson.Document website = new org.bson.Document("id", id).append("title", title).append("url", url).append("content", doc);
         CrawlerCollection.insertOne(website);
     }
 

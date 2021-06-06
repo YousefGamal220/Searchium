@@ -1,7 +1,7 @@
 import DB.MongoDB;
 import WebCrawler.WebCrawler;
 import WebIndexer.StopWordsRemover;
-import WebIndexer.WebIndexerMain;
+import WebIndexer.WebIndexer;
 
 import org.bson.Document;
 
@@ -13,15 +13,12 @@ public class App {
     public static void main(String[] args) throws Throwable {
         System.out.println("Searchium Main is called..");
 
-        // Reading the maximum pages to crawl
-        System.out.println("Enter the number of maximum documents to crawl");
-        Scanner in = new Scanner(System.in);
-        int MAX_PAGES_COUNT = in.nextInt();
-
         // Connect to the database
-        MongoDB DB = new MongoDB("Searchium", MAX_PAGES_COUNT);
+        MongoDB DB = new MongoDB("Searchium");
+        DB.checkSeed();
 
         // Reading the number of threads
+        Scanner in = new Scanner(System.in);
         System.out.println("Enter the number of threads you want to run:");
         int threadsNum = in.nextInt();
         in.close();
@@ -53,7 +50,7 @@ public class App {
         List<String> stop_words = StopWordsRemover.buildStopWordsCorpus("stopping_words.txt");
 
         // Create an instance from the Indexer
-        WebIndexerMain webIndexerMain = new WebIndexerMain(DB, stop_words);
+        WebIndexer webIndexerMain = new WebIndexer(DB, stop_words);
 
         // Retrieve all the crawled pages from the DB
         Iterator<Document> CrawlerCollectionItr = DB.getAllPages().iterator();
