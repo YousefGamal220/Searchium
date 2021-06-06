@@ -16,8 +16,7 @@ public class WebIndexerMain {
         Scanner sc = new Scanner(System.in);
         System.out.println("Enter 1 for new Indexing or 2 to continue");
         int ans = sc.nextInt();
-        boolean update = false;
-        if (ans == 2) update = true;
+        boolean update = ans == 2;
 
         // Get the stopping words from the file
         List<String> stop_words = StopWordsRemover.buildStopWordsCorpus("stopping_words.txt");

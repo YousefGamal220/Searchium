@@ -17,8 +17,8 @@ public class WebIndexer {
     public WebIndexer(MongoDB DB, List<String> stop_words) {
         this.DB = DB;
         this.stop_words = stop_words;
-        index = new HashMap<String, List<Document>>();
-        indexedPages = new HashMap<String, Integer>();
+        index = new HashMap<>();
+        indexedPages = new HashMap<>();
     }
 
     public void runIndexer(String page, String page_url) throws IOException {
@@ -26,12 +26,11 @@ public class WebIndexer {
         if (DB.isIndexed(page_url)) {
             System.out.println("This page in indexed before");
             return;
-        }
-        else{
+        } else {
             System.out.println("New page added");
         }
 
-        HashMap<String, Integer> words_count = new HashMap<String, Integer>();
+        HashMap<String, Integer> words_count = new HashMap<>();
         page = page.replaceAll("[^a-zA-Z]", " ");
         List<String> words = Tokenizer.tokenizeWord(page);
         StopWordsRemover.removeStopWord(words, this.stop_words);
@@ -63,7 +62,7 @@ public class WebIndexer {
             }
         }
 
-        indexedPages.put(page_url,  words.size());
+        indexedPages.put(page_url, words.size());
 
     }
 
