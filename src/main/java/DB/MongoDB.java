@@ -7,6 +7,7 @@ import org.bson.Document;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Scanner;
 
@@ -115,5 +116,37 @@ public class MongoDB {
                 .append("IDF", Math.log(CrawlerCollection.countDocuments() / (float) pages.size()))
                 .append("pages", pages);
         wordsCollection.insertOne(wordDoc);
+    }
+
+    public void insertPage(String url, int count)
+    {
+        org.bson.Document pageDoc = new org.bson.Document("url", url)
+                .append("count", count);
+        IndexedPages.insertOne(pageDoc);
+    }
+
+    public boolean isIndexed(String url)
+    {
+
+        return IndexedPages.find(new Document("url", url)).iterator().hasNext();
+    }
+
+    public void updateIDF(String word)
+    {
+        int t = wordsCollection.find(new Document("word", word)).iterator().next()
+                .getList("pages", Document.class).size();
+
+        wordsCollection.updateOne(new Document("word", word),
+                new Document("$set",
+                        new Document("IDF", Math.log(CrawlerCollection.countDocuments() / (float) 9))));
+    }
+
+    public void updateAllIDF()
+    {
+        Iterator wordsItr = wordsCollection.find().iterator();
+        while (wordsItr.hasNext())
+        {
+            updateIDF((String) wordsItr.next());
+        }
     }
 }
