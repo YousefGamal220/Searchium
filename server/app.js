@@ -14,7 +14,8 @@ app.get("/", (req, res) => {
 });
 
 app.get("/search", paginatedResults(), async (req, res) => {
-    res.status(200).json(res.paginatedResults);
+    res.header("Content-Type", 'application/json');
+    res.status(200).send(JSON.stringify(res.paginatedResults, null, 4));
 });
 
 function paginatedResults() {
@@ -26,15 +27,17 @@ function paginatedResults() {
         const startIndex = (page - 1) * limit;
         const endIndex = page * limit;
 
-        const results = {};
+        const results = { word };
 
         try {
-            const { pages } = await Word.findOne({ word }).select('pages -_id');
+            const { IDF, pages } = await Word.findOne({ word }).select('IDF pages -_id');
             const slicedPages = pages.slice(startIndex, endIndex);
+            slicedPages.sort((a, b) => { return (b.tf * IDF) - (a.tf * IDF) })
             let index = 0;
             for (let page of slicedPages) {
-                const pageDetails = await CrawledPage.findOne({ url: page.url }).select('title content -_id');
-                slicedPages[index++] = { ...page, pageDetails };
+                const { title, content } = await CrawledPage.findOne({ url: page.url }).select('title content -_id');
+                delete page.tf;
+                slicedPages[index++] = { ...page, title, content };
             }
             if (endIndex < pages.length) {
                 results.next = page + 1;
