@@ -1,6 +1,7 @@
 #npm
 /server/node_modules
 /server/package-lock.json
+server/.env
 
 # Compiled class file
 *.class
