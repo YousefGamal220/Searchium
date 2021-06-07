@@ -46,6 +46,12 @@ public class App {
             crawler.join();
         }
 
+        // Asking the user whether he wants to start a new indexing or not
+        Scanner sc = new Scanner(System.in);
+        System.out.println("Enter 1 for new Indexing or 2 to continue");
+        int ans = sc.nextInt();
+        boolean update = ans == 2;
+
         // Get the stopping words from the file
         List<String> stop_words = StopWordsRemover.buildStopWordsCorpus("stopping_words.txt");
 
@@ -68,6 +74,12 @@ public class App {
         }
 
         // Save the indexed words in the DB
+        System.out.println("Update Database...");
         webIndexerMain.updateIndexerDB();
+
+        if (update) {
+            System.out.println("Update IDF...");
+            DB.updateAllIDF();
+        }
     }
 }

@@ -6,11 +6,17 @@ import org.bson.Document;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Scanner;
 
 public class WebIndexerMain {
     public static void main(String[] args) throws IOException {
         // Connect to the database
         MongoDB DB = new MongoDB("Searchium");
+
+        Scanner sc = new Scanner(System.in);
+        System.out.println("Enter 1 for new Indexing or 2 to continue");
+        int ans = sc.nextInt();
+        boolean update = ans == 2;
 
         // Get the stopping words from the file
         List<String> stop_words = StopWordsRemover.buildStopWordsCorpus("stopping_words.txt");
@@ -34,6 +40,12 @@ public class WebIndexerMain {
         }
 
         // Save the indexed words in the DB
+        System.out.println("Update Database...");
         webIndexerMain.updateIndexerDB();
+
+        if (update) {
+            System.out.println("Update IDF...");
+            DB.updateAllIDF();
+        }
     }
 }
