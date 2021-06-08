@@ -43,8 +43,8 @@ package WebIndexer;
  */
 
 class Stemmer {
-    private char[] b;
     private static final int INC = 50;  /* unit of size whereby b is increased */
+    private char[] b;
     private int i,  /* offset into the stemmed word */
             i_end,  /* offset to end of stemmed word */
             j, k;
@@ -66,6 +66,21 @@ class Stemmer {
     }
 
     /**
+     * Test program for demonstrating the Stemmer.  It reads text from a
+     * a list of files, stems each word, and writes the result to standard
+     * output. Note that the word stemmed is expected to be in lower case:
+     * forcing lower case must be done outside the Stemmer class.
+     * Usage: Stemmer file-name file-name ...
+     */
+    public static void main(String[] args) {
+        char[] w = new char[501];
+        Stemmer s = new Stemmer("Study");
+
+        String o = s.toString();
+        System.out.println(o);
+    }
+
+    /**
      * Add a character to the word being stemmed.  When you are finished
      * adding characters, you can call stem(void) to stem the word.
      */
@@ -77,7 +92,6 @@ class Stemmer {
         }
         b[i++] = ch;
     }
-
 
     /**
      * Adds wLen characters to the word being stemmed contained in a portion
@@ -128,22 +142,22 @@ class Stemmer {
             case 'u':
                 return false;
             case 'y':
-                return (i == 0) ? true : !cons(i - 1);
+                return i == 0 || !cons(i - 1);
             default:
                 return true;
         }
     }
 
-   /* m() measures the number of consonant sequences between 0 and j. if c is
-      a consonant sequence and v a vowel sequence, and <..> indicates arbitrary
-      presence,
+    /* m() measures the number of consonant sequences between 0 and j. if c is
+       a consonant sequence and v a vowel sequence, and <..> indicates arbitrary
+       presence,
 
-         <c><v>       gives 0
-         <c>vc<v>     gives 1
-         <c>vcvc<v>   gives 2
-         <c>vcvcvc<v> gives 3
-         ....
-   */
+          <c><v>       gives 0
+          <c>vc<v>     gives 1
+          <c>vcvc<v>   gives 2
+          <c>vcvcvc<v> gives 3
+          ....
+    */
     private final int m() {
         int n = 0;
         int i = 0;
@@ -184,21 +198,20 @@ class Stemmer {
         return cons(j);
     }
 
-   /* cvc(i) is true <=> i-2,i-1,i has the form consonant - vowel - consonant
-      and also if the second c is not w,x or y. this is used when trying to
-      restore an e at the end of a short word. e.g.
+    /* cvc(i) is true <=> i-2,i-1,i has the form consonant - vowel - consonant
+       and also if the second c is not w,x or y. this is used when trying to
+       restore an e at the end of a short word. e.g.
 
-         cav(e), lov(e), hop(e), crim(e), but
-         snow, box, tray.
+          cav(e), lov(e), hop(e), crim(e), but
+          snow, box, tray.
 
-   */
+    */
     private final boolean cvc(int i) {
         if (i < 2 || !cons(i) || cons(i - 1) || !cons(i - 2)) return false;
         {
             int ch = b[i];
-            if (ch == 'w' || ch == 'x' || ch == 'y') return false;
+            return ch != 'w' && ch != 'x' && ch != 'y';
         }
-        return true;
     }
 
     private final boolean ends(String s) {
@@ -210,7 +223,7 @@ class Stemmer {
         return true;
     }
 
-   /* setto(s) sets (j+1),...k to the characters in the string s, readjusting k. */
+    /* setto(s) sets (j+1),...k to the characters in the string s, readjusting k. */
     private final void setto(String s) {
         int l = s.length();
         int o = j + 1;
@@ -223,27 +236,27 @@ class Stemmer {
         if (m() > 0) setto(s);
     }
 
-   /* step1() gets rid of plurals and -ed or -ing. e.g.
+    /* step1() gets rid of plurals and -ed or -ing. e.g.
 
-          caresses  ->  caress
-          ponies    ->  poni
-          ties      ->  ti
-          caress    ->  caress
-          cats      ->  cat
+           caresses  ->  caress
+           ponies    ->  poni
+           ties      ->  ti
+           caress    ->  caress
+           cats      ->  cat
 
-          feed      ->  feed
-          agreed    ->  agree
-          disabled  ->  disable
+           feed      ->  feed
+           agreed    ->  agree
+           disabled  ->  disable
 
-          matting   ->  mat
-          mating    ->  mate
-          meeting   ->  meet
-          milling   ->  mill
-          messing   ->  mess
+           matting   ->  mat
+           mating    ->  mate
+           meeting   ->  meet
+           milling   ->  mill
+           messing   ->  mess
 
-          meetings  ->  meet
+           meetings  ->  meet
 
-   */
+    */
     private final void step1() {
         if (b[k] == 's') {
             if (ends("sses")) k -= 2;
@@ -272,9 +285,9 @@ class Stemmer {
         if (ends("y") && vowelinstem()) b[k] = 'i';
     }
 
-   /* step3() maps double suffices to single ones. so -ization ( = -ize plus
-      -ation) maps to -ize etc. note that the string before the suffix must give
-      m() > 0. */
+    /* step3() maps double suffices to single ones. so -ization ( = -ize plus
+       -ation) maps to -ize etc. note that the string before the suffix must give
+       m() > 0. */
     private final void step3() {
         if (k == 0) return; /* For Bug 1 */
         switch (b[k - 1]) {
@@ -506,20 +519,5 @@ class Stemmer {
         }
         i_end = k + 1;
         i = 0;
-    }
-
-    /**
-     * Test program for demonstrating the Stemmer.  It reads text from a
-     * a list of files, stems each word, and writes the result to standard
-     * output. Note that the word stemmed is expected to be in lower case:
-     * forcing lower case must be done outside the Stemmer class.
-     * Usage: Stemmer file-name file-name ...
-     */
-    public static void main(String[] args) {
-        char[] w = new char[501];
-        Stemmer s = new Stemmer("Study");
-
-        String o = s.toString();
-        System.out.println(o);
     }
 }
