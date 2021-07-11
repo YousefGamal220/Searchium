@@ -14,12 +14,14 @@ app.get("/", (req, res) => {
 });
 
 app.get("/search", paginatedResults(), async (req, res) => {
+    console.log("Here");
     res.header("Content-Type", 'application/json');
     res.status(200).send(JSON.stringify(res.paginatedResults, null, 1));
 });
 
 function paginatedResults() {
     return async (req, res, next) => {
+        console.log("Reached ")
         const word = req.query.q;
         const page = parseInt(req.query.p);
         const limit = 10;
@@ -63,6 +65,7 @@ function paginatedResults() {
             results.pages = slicedPages;
 
             res.paginatedResults = results;
+            console.log(results);
             next();
         } catch (e) {
             res.status(500).json({ message: e.message });
